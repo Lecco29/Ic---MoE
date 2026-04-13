@@ -51,6 +51,9 @@ Thumbs.db
 # Dataset images (270MB)
 data/images/
 
+# Paper
+paper/
+
 # Temporary files
 *.tmp
 *.temp
