@@ -1,0 +1,327 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Evaluation of Hierarchical Features from Pre-trained Networks for Color and Texture Pattern Retrieval
+\\
+\thanks{}
+}
+
+\author{
+\IEEEauthorblockN{Leonardo Jose Reis Pinto}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{Federal University of Technology (UTFPR)}\\
+Santa Helena (PR), Brazil \\
+leonardpinto@alunos.utfpr.edu.br}
+\and
+\IEEEauthorblockN{Alceu de Souza Britto Jr.}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{Pontifical Catholic University of Paraná (PUCPR)}\\
+Curitiba (PR), Brazil \\
+alceu@ppgia.pucpr.br}
+
+\and\and
+
+\hspace{1cm}
+\IEEEauthorblockN{jonathan}
+\hspace{9cm}\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{Federal University of Technology (UTFPR)}\\
+\hspace{1cm}Santa Helena (PR), Brazil \\
+\hspace{1cm}email@alunos.utfpr.edu.br}
+\and
+
+\IEEEauthorblockN{Arlete Teresinha Beuren}
+\IEEEauthorblockA{\textit{Department of Computer Science} \\
+\textit{Federal University of Technology (UTFPR)}\\
+Santa Helena (PR), Brazil \\
+arletebeuren@utfpr.edu.br}
+}
+
+\maketitle
+
+\begin{abstract}
+This study investigates the hierarchical feature extraction capabilities of modern pre-trained neural network architectures for visual attribute recognition, specifically targeting color and texture attributes in clothing images. We evaluate four distinct backbone architectures representing different paradigms: VGG-16 and ResNet-50 as classical convolutional neural networks, iBOT as a self-supervised Vision Transformer, and VMamba as a Visual State Space Model. Features are extracted from intermediate layers of each architecture and evaluated using k-Nearest Neighbors classification with 5-fold cross-validation. Our experiments reveal that different architectural depths exhibit varying sensitivities to color and texture attributes, with early layers consistently capturing color information while deeper layers better represent texture patterns. Results demonstrate that iBOT achieves the best texture recognition (97.2\% at block 9) while ResNet-50 and iBOT tie for color recognition (95.9\%). These findings provide insights into layer-wise feature specialization across different neural network paradigms and practical guidance for attribute-specific image retrieval systems.
+
+\end{abstract}
+
+\begin{IEEEkeywords}
+Convolutional Neural Networks, Vision Transformers, Visual State Space Models, Feature Extraction, Attributes
+\end{IEEEkeywords}
+
+\section{Introduction}
+Advances in deep learning have enabled increasingly sophisticated computer vision solutions for industrial applications. One notable example is image retrieval in e-commerce, where searches can be conducted using text, images, or a combination of both—key components of innovative systems. While text-based search remains the most common query method, its effectiveness relies heavily on detailed product descriptions. To enhance user experience, some search engines incorporate image-based search, offering significantly more precise results [1].
+
+Image content-based search engines pose unique challenges and find applications beyond e-commerce, including medical image retrieval, geographic information systems, and surveillance [12]. The primary challenge lies in accurately extracting the relevant content of an image, particularly when the user's interest is based on specific attributes such as color, texture, or their combination. In the context of e-commerce, this type of attribute-focused search is increasingly in demand.
+
+Previous research has demonstrated that different layers of convolutional neural networks (CNNs) capture different types of visual information [2]. Early layers typically capture low-level features such as edges and colors, while deeper layers encode more abstract, semantic information including textures and patterns. This hierarchical feature representation suggests that selecting appropriate layers for specific visual attributes could significantly improve recognition accuracy.
+
+Recent advances in neural network architectures have introduced new paradigms beyond traditional CNNs. Vision Transformers (ViTs) apply the transformer architecture to image processing by treating images as sequences of patches [3]. More recently, Visual State Space Models such as VMamba have emerged, combining the efficiency of state space models with visual feature extraction [4]. Understanding how these different architectural paradigms organize hierarchical features is crucial for effective visual attribute recognition.
+
+This study evaluates four distinct backbone architectures for extracting color and texture features from clothing images: VGG-16 [5], a classical CNN with sequential convolutional and pooling layers; ResNet-50 [6], a deep CNN with residual connections; iBOT [7], a self-supervised Vision Transformer pre-trained using masked image modeling; and VMamba [4], a Visual State Space Model that applies the Mamba architecture to visual tasks.
+
+To guide our experiments, we pose the following research questions:
+(RQ1) Which layers within each architecture provide the best representation of color attributes?
+(RQ2) Which layers within each architecture provide the best representation of texture attributes?
+(RQ3) How do the four architectural paradigms compare in their hierarchical feature organization?
+
+This study is organized as follows: Section 2 reviews related work, Section 3 describes the backbone architectures, Section 4 details the applied methodology, Section 5 presents experimental results, and Section 6 concludes with findings and future directions.
+
+
+\section{RELATED WORK}
+
+The use of deep neural networks for visual similarity and attribute recognition has been extensively studied in the literature. Search engines increasingly incorporate image-based queries, advancing beyond traditional text-based searches [1].
+
+Baloian et al. [2] investigated ResNet-50 layers to determine optimal representations for color and texture searches. Their research concluded that initial layers of the network are better suited for color recognition, while deeper layers excel at texture recognition. Features were extracted from residual blocks using Global Average Pooling (GAP), and a k-Nearest Neighbors (k-NN) classifier with 5-fold cross-validation was employed for evaluation.
+
+The authors in [8] classify plant species by leaf image using the architecture of Siamese neural networks, combining features from intermediate convolutional layers to improve representations. According to the authors, the combination of characteristics from different layers presents a relevant performance gain and different layers bring different results.
+
+In the study by [9], the authors used a Siamese neural network to define the similarity index of the images of each class through an analysis of the entire leaf and parts of it.
+
+In [10], the authors present an efficient feature extraction method based on wavelet packets and Gabor filter eigenvalues for texture analysis, combined with k-NN for classification. Studies also propose the combination of color and texture features as a feature vector [11]. Lin et al. [13] proposed image content features based on color, texture, and color distribution using color co-occurrence matrices and histogram-based methods.
+
+Recent advances in self-supervised learning have introduced powerful pre-training strategies for visual representations. Vision Transformers pre-trained with methods such as DINO [14] and iBOT [7] have shown remarkable feature extraction capabilities without requiring labeled data during pre-training. The emergence of State Space Models for vision, particularly VMamba [4], offers a new paradigm combining efficiency with hierarchical visual feature extraction.
+
+
+\section{BACKBONE ARCHITECTURES}
+
+This section describes the four backbone architectures evaluated in this study.
+
+\subsection{VGG-16}
+VGG-16 [5] is a classical convolutional neural network characterized by its uniform architecture using small (3×3) convolutional filters throughout. The architecture consists of 16 weight layers organized into 5 convolutional blocks, each followed by max-pooling. Features are extracted after each max-pooling layer using Global Average Pooling (GAP), resulting in dimensions of 64, 128, 256, 512, and 512 for layers 1 through 5.
+
+\subsection{ResNet-50}
+ResNet-50 [6] introduced residual connections (skip connections) that enable training of much deeper networks. The architecture consists of 4 main residual blocks. Features are extracted from each block using GAP, with dimensions of 256, 512, 1024, and 2048 for layers 1 through 4.
+
+\subsection{iBOT}
+iBOT (Image BERT Pre-Training with Online Tokenizer) [7] is a Vision Transformer pre-trained using self-supervised masked image modeling. The ViT-S/16 variant consists of 12 transformer blocks, each producing 384-dimensional embeddings. Features are extracted using the CLS token from each block.
+
+\subsection{VMamba}
+VMamba [4] adapts the Mamba architecture—a selective state space model—for visual tasks. Unlike transformers with quadratic complexity, VMamba achieves linear complexity. The VMamba-Tiny variant has 4 stages with dimensions of 96, 192, 384, and 768.
+
+
+\section{APPLIED METHODOLOGY}
+
+The methodology consists of extracting features from intermediate layers of pre-trained backbone networks and evaluating their effectiveness for color and texture recognition using a k-NN classifier.
+
+\subsection{Dataset}
+The dataset used in this research was created by Baloian et al. [2], leveraging images sourced from Kaggle and other online repositories. It features a diverse collection of clothing items including hats, dresses, shirts, socks, purses, and scarves.
+
+Color Dataset: Contains 1,000 images organized into 10 classes (100 images each): red, black, blue, green, yellow, gray, brown, pink, purple, and orange.
+
+Texture Dataset: Contains 1,000 images organized into 10 classes (100 images each): squared, striped, flowers, leopard, polka, basic, paisley, argyle, crowsfeet, and sequin.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{Fig1.PNG}}
+\caption{Sample images from the texture dataset showing six texture classes: Argyle, Basic, Crowsfeet, Flowers, Leopard, and Paisley.}
+\label{fig_texture}
+\end{figure}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{Fig2.PNG}}
+\caption{Sample images from the color dataset showing all ten color classes: Yellow, Blue, Brown, Gray, Purple, Orange, Black, Red, Pink, and Green.}
+\label{fig_color}
+\end{figure}
+
+The database was divided into 70\% for training and 30\% for testing.
+
+\subsection{Feature Extraction Process}
+For each backbone architecture, features are extracted from intermediate layers as follows: (1) Images are resized to 224×224 pixels and normalized using ImageNet statistics; (2) Forward hooks capture intermediate activations during inference; (3) Global Average Pooling (GAP) is applied for CNNs and VMamba, while CLS token extraction is used for iBOT; (4) Extracted features are stored for classification.
+
+\subsection{Classification Protocol}
+The k-Nearest Neighbors algorithm is used with k=5 neighbors, Euclidean distance metric, and 5-fold stratified cross-validation.
+
+
+\section{EXPERIMENTAL RESULTS}
+
+This section presents the experimental results for each backbone architecture.
+
+\subsection{VGG-16 Results}
+
+\begin{table}[htbp]
+\caption{VGG-16 Layer-wise Accuracy for Color and Texture.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Layer} & \textbf{Color(\%)} & \textbf{Texture(\%)} & \textbf{Dim}\\
+\hline
+VGG-16\_Layer\_1 & \textbf{95.1} & 70.7 & 64 \\
+\hline
+VGG-16\_Layer\_2 & 90.3 & 86.6 & 128 \\
+\hline
+VGG-16\_Layer\_3 & 85.5 & 93.2 & 256 \\
+\hline
+VGG-16\_Layer\_4 & 71.8 & \textbf{94.7} & 512 \\
+\hline
+VGG-16\_Layer\_5 & 55.1 & 89.4 & 512 \\
+\hline
+\end{tabular}
+\label{tab1}
+\end{center}
+\end{table}
+
+VGG-16 demonstrates clear layer specialization: Layer 1 achieves the highest color accuracy (95.1\%), while Layer 4 achieves the best texture accuracy (94.7\%).
+
+\subsection{ResNet-50 Results}
+
+\begin{table}[htbp]
+\caption{ResNet-50 Layer-wise Accuracy for Color and Texture.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Layer} & \textbf{Color(\%)} & \textbf{Texture(\%)} & \textbf{Dim}\\
+\hline
+ResNet-50\_Layer\_1 & 95.5 & 83.4 & 256 \\
+\hline
+ResNet-50\_Layer\_2 & \textbf{95.9} & 90.7 & 512 \\
+\hline
+ResNet-50\_Layer\_3 & 88.3 & \textbf{93.3} & 1024 \\
+\hline
+ResNet-50\_Layer\_4 & 59.2 & 86.3 & 2048 \\
+\hline
+\end{tabular}
+\label{tab2}
+\end{center}
+\end{table}
+
+ResNet-50 shows similar patterns: Layer 2 achieves the best color accuracy (95.9\%), while Layer 3 achieves the best texture accuracy (93.3\%).
+
+\subsection{iBOT Results}
+
+\begin{table}[htbp]
+\caption{iBOT Block-wise Accuracy for Color and Texture.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Block} & \textbf{Color(\%)} & \textbf{Texture(\%)} & \textbf{Dim}\\
+\hline
+iBOT\_Block\_0 & 94.5 & 52.2 & 384 \\
+\hline
+iBOT\_Block\_2 & \textbf{95.9} & 79.9 & 384 \\
+\hline
+iBOT\_Block\_5 & 88.7 & 91.0 & 384 \\
+\hline
+iBOT\_Block\_9 & 69.9 & \textbf{97.2} & 384 \\
+\hline
+iBOT\_Block\_11 & 62.8 & 96.0 & 384 \\
+\hline
+\end{tabular}
+\label{tab3}
+\end{center}
+\end{table}
+
+iBOT exhibits a pronounced trade-off between color and texture. Block 2 achieves the best color (95.9\%), while Block 9 achieves the highest texture accuracy (97.2\%).
+
+\subsection{VMamba Results}
+
+\begin{table}[htbp]
+\caption{VMamba Stage-wise Accuracy for Color and Texture.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Stage} & \textbf{Color(\%)} & \textbf{Texture(\%)} & \textbf{Dim}\\
+\hline
+VMamba\_Stage\_1 & \textbf{94.4} & 93.9 & 96 \\
+\hline
+VMamba\_Stage\_2 & 93.4 & \textbf{95.8} & 192 \\
+\hline
+VMamba\_Stage\_3 & 78.3 & \textbf{95.8} & 384 \\
+\hline
+VMamba\_Stage\_4 & 54.1 & 86.5 & 768 \\
+\hline
+\end{tabular}
+\label{tab4}
+\end{center}
+\end{table}
+
+VMamba shows Stage 1 optimal for color (94.4\%) and Stages 2-3 for texture (95.8\%).
+
+\subsection{Comparative Analysis}
+
+\begin{table}[htbp]
+\caption{Best Results Summary Across Architectures.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Model} & \textbf{Attribute} & \textbf{Best Layer} & \textbf{Acc(\%)}\\
+\hline
+VGG-16 & Color & Layer 1 & 95.1 \\
+\hline
+VGG-16 & Texture & Layer 4 & 94.7 \\
+\hline
+ResNet-50 & Color & Layer 2 & 95.9 \\
+\hline
+ResNet-50 & Texture & Layer 3 & 93.3 \\
+\hline
+iBOT & Color & Block 2 & 95.9 \\
+\hline
+iBOT & Texture & Block 9 & \textbf{97.2} \\
+\hline
+VMamba & Color & Stage 1 & 94.4 \\
+\hline
+VMamba & Texture & Stage 2-3 & 95.8 \\
+\hline
+\end{tabular}
+\label{tab5}
+\end{center}
+\end{table}
+
+Key findings: (1) ResNet-50 and iBOT tie for color at 95.9\%; (2) iBOT achieves the highest texture accuracy at 97.2\%; (3) All architectures show early layers optimal for color and deeper layers for texture.
+
+\subsection{DISCUSSION}
+
+Promising results were observed across all four architectures. The most important finding is that, regardless of the architectural paradigm (CNN, Transformer, or State Space Model), the trend is maintained: initial layers present better results for color and deeper layers for texture.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{Fig7.PNG}}
+\caption{Texture classification examples. Top labels show ground truth, bottom labels show predictions. The model correctly identifies challenging patterns such as leopard and paisley.}
+\label{fig_texture_results}
+\end{figure}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{Fig8.PNG}}
+\caption{Color classification examples. Top labels show ground truth, bottom labels show predictions. Some confusion occurs between similar colors (red/orange, orange/brown).}
+\label{fig_color_results}
+\end{figure}
+
+iBOT's self-supervised pre-training produces strong hierarchical features, achieving the best texture recognition (97.2\%) while maintaining competitive color recognition (95.9\%). VGG-16 achieves high performance with low-dimensional features (64D for color), suggesting efficient representations are possible with simple architectures.
+
+
+\section{CONCLUSIONS}
+
+This study evaluated hierarchical feature extraction from four pre-trained neural network architectures—VGG-16, ResNet-50, iBOT, and VMamba—for visual attribute recognition in clothing images.
+
+The experiments demonstrate that: (1) All four architectures exhibit hierarchical feature specialization, with early layers optimal for color and deeper layers for texture; (2) iBOT achieves the best texture recognition (97.2\%), while ResNet-50 and iBOT tie for color (95.9\%); (3) The hierarchical organization is consistent across CNN, Transformer, and SSM paradigms.
+
+For future experiments, we recommend investigating fusion strategies combining features from multiple layers to leverage both color and texture information simultaneously, as well as exploring learned fusion approaches that could eliminate the need for manual layer selection.
+
+
+\section*{Acknowledgment}
+This work is supported by the Graduate Program in Informatics at the Pontifical Catholic University of Paraná and partially supported by the Brazilian Council for Scientific and Technological Development (CNPq) linked to the Ministry of Science, Technology and Innovation.
+
+
+\begin{thebibliography}{00}
+\bibitem{b1} Dubey, S. R. (2021). A decade survey of content based image retrieval using deep learning. IEEE Transactions on Circuits and Systems for Video Technology, 32(5), 2687-2704.
+\bibitem{b2} Baloian, A., Murrugarra-Llerena, N., \& Saavedra, J. M. (2021). Scalable visual attribute extraction through hidden layers of a residual convnet. arXiv preprint arXiv:2104.00161.
+\bibitem{b3} Dosovitskiy, A. et al. (2020). An image is worth 16x16 words: Transformers for image recognition at scale. arXiv preprint arXiv:2010.11929.
+\bibitem{b4} Liu, Y. et al. (2024). VMamba: Visual state space model. arXiv preprint arXiv:2401.10166.
+\bibitem{b5} Simonyan, K., \& Zisserman, A. (2014). Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556.
+\bibitem{b6} He, K., Zhang, X., Ren, S., \& Sun, J. (2016). Deep residual learning for image recognition. In CVPR (pp. 770-778).
+\bibitem{b7} Zhou, J. et al. (2021). iBOT: Image BERT pre-training with online tokenizer. arXiv preprint arXiv:2111.07832.
+\bibitem{b8} Moresco, M., Britto, A. D. S., Costa, Y. M., Senger, L. J., \& Hochuli, A. G. (2022). Combining multi-layer features for plant species classification in a Siamese network. In IEEE SMC (pp. 2446-2451).
+\bibitem{b9} Araújo, V. M., Britto Jr, A. S., Oliveira, L. S., \& Koerich, A. L. (2022). Two-view fine-grained classification of plant species. Neurocomputing, 467, 427-441.
+\bibitem{b10} Irtaza, A., Jaffar, M. A., Aleisa, E., \& Choi, T. S. (2014). Embedding neural networks for semantic association in content based image retrieval. Multimedia Tools and Applications, 72, 1911-1931.
+\bibitem{b11} Atlam, H. F., Attiya, G., \& El-Fishawy, N. (2017). Integration of color and texture features in CBIR system. Int. J. Comput. Appl., 164(3), 23-29.
+\bibitem{b12} Youssef, S. M. (2012). ICTEDCT-CBIR: Integrating curvelet transform with enhanced dominant colors extraction and texture analysis for efficient content-based image retrieval. Computers \& Electrical Engineering, 38(5), 1358-1376.
+\bibitem{b13} Lin, C. H., Chen, R. T., \& Chan, Y. K. (2009). A smart content-based image retrieval system based on color and texture feature. Image and Vision Computing, 27(6), 658-665.
+\bibitem{b14} Caron, M. et al. (2021). Emerging properties in self-supervised vision transformers. In ICCV (pp. 9650-9660).
+\end{thebibliography}
+
+\end{document}

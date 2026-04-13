@@ -1,0 +1,18 @@
+# Experimento 2 — Fusão por Concatenação Early+Deep + KNN
+experiment: exp02_concatenacao
+description: "Concatenação das features da melhor camada early e deep de cada backbone, avaliação com KNN"
+
+protocol:
+  folds: 5
+  split: "70/30"
+  knn_k: 5
+
+fusion: concatenation  # fixo, sem aprendizado
+
+early_deep_pairs:
+  vgg16:   {color: [layer1, layer4], texture: [layer1, layer4]}
+  resnet50: {color: [layer2, layer3], texture: [layer2, layer3]}
+  ibot:    {color: [block2, block11], texture: [block2, block11]}
+  vmamba:  {color: [stage1, stage2], texture: [stage1, stage2]}
+
+attributes: [color, texture]

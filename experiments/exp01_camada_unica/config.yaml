@@ -1,0 +1,39 @@
+# Experimento 1 — Extração de Features por Camada Única + KNN
+experiment: exp01_camada_unica
+description: "Extração não-supervisionada de features de cada camada/bloco dos backbones, avaliação com KNN 5-fold 70/30"
+
+protocol:
+  folds: 5
+  split: "70/30"
+  knn_k: 5
+
+backbones:
+  - name: ibot
+    type: ViT-S/16
+    weights: checkpoint_ibot_vits16.pth  # self-supervised (MIM, ImageNet-1K)
+    layers: [block0..block11]
+    best_color: block2
+    best_texture: block9
+
+  - name: resnet50
+    type: ResNet-50
+    weights: ImageNet1K_V1
+    layers: [layer1, layer2, layer3, layer4]
+    best_color: layer2
+    best_texture: layer3
+
+  - name: vgg16
+    type: VGG-16
+    weights: ImageNet1K_V1
+    layers: [layer1..layer5]
+    best_color: layer1
+    best_texture: layer4
+
+  - name: vmamba
+    type: VMamba-Tiny
+    weights: model.safetensors
+    layers: [stage1, stage2, stage3, stage4]
+    best_color: stage1
+    best_texture: stage2
+
+attributes: [color, texture]

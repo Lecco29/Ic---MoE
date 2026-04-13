@@ -1,0 +1,21 @@
+# ambiente virtual
+venv/
+
+# cache python
+__pycache__/
+*.pyc
+*.pyo
+
+# modelo grande, tem que baixar separado
+model.safetensors
+
+# repositorio vmamba, ou seja,odigo de terceiros
+vmamba_repo/
+
+# resultados, opcional - pode querer manter
+# results_*.csv
+
+# arquivos do sistema
+.DS_Store
+*.swp
+

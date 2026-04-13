@@ -1,0 +1,593 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Avalia\c{c}\~{a}o de um Modelo de M\'{e}trica Profunda para Recupera\c{c}\~{a}o de Padr\~{o}es Baseada em Caracter\'{i}sticas de Cor e Textura}
+
+\author{
+\IEEEauthorblockN{Arlete Teresinha Beuren}
+\IEEEauthorblockA{\textit{Departamento de Ci\^{e}ncia da Computa\c{c}\~{a}o} \\
+\textit{Universidade Tecnol\'{o}gica Federal do Paran\'{a} (UTFPR)}\\
+Santa Helena (PR), Brasil \\
+arletebeuren@utfpr.edu.br}
+\and
+\IEEEauthorblockN{Alceu de Souza Britto Jr.}
+\IEEEauthorblockA{\textit{Departamento de Ci\^{e}ncia da Computa\c{c}\~{a}o} \\
+\textit{Pontif\'{i}cia Universidade Cat\'{o}lica do Paran\'{a} (PUCPR)}\\
+Curitiba (PR), Brasil \\
+alceu@ppgia.pucpr.br}
+\and
+\IEEEauthorblockN{Vin\'{i}cius Cerqueira Ribeiro}
+\IEEEauthorblockA{\textit{Departamento de Ci\^{e}ncia da Computa\c{c}\~{a}o} \\
+\textit{Universidade Tecnol\'{o}gica Federal do Paran\'{a} (UTFPR)}\\
+Santa Helena (PR), Brasil \\
+viniciuscerqueira@alunos.utfpr.edu.br}
+\and
+\IEEEauthorblockN{Jose Saavedra}
+\IEEEauthorblockA{\textit{Universidad de Los Andes}\\
+Santiago, Chile \\
+email@uchile.cl}
+\and
+\IEEEauthorblockN{Leonardo Jose Reis Pinto}
+\IEEEauthorblockA{\textit{Departamento de Ci\^{e}ncia da Computa\c{c}\~{a}o} \\
+\textit{Universidade Tecnol\'{o}gica Federal do Paran\'{a} (UTFPR)}\\
+Santa Helena (PR), Brasil \\
+leonardopinto@alunos.utfpr.edu.br}
+\and
+\IEEEauthorblockN{Jonathan [Sobrenome]}
+\IEEEauthorblockA{\textit{Departamento de Ci\^{e}ncia da Computa\c{c}\~{a}o} \\
+\textit{Universidade Tecnol\'{o}gica Federal do Paran\'{a} (UTFPR)}\\
+Santa Helena (PR), Brasil \\
+jonathan@alunos.utfpr.edu.br}
+}
+
+\maketitle
+
+\begin{abstract}
+Este estudo aborda o desafio de extrair efetivamente o conte\'{u}do de imagens com base em atributos espec\'{i}ficos: cor, textura ou sua combina\c{c}\~{a}o---uma \'{a}rea de particular relev\^{a}ncia para aplica\c{c}\~{o}es de com\'{e}rcio eletr\^{o}nico. Modelos de aprendizado profundo s\~{a}o avaliados para compreender a sensibilidade de suas camadas a esses atributos. Experimentos foram conduzidos para avaliar representa\c{c}\~{o}es espec\'{i}ficas de camadas e determinar sua efic\'{a}cia na captura de caracter\'{i}sticas de cor, textura e combinadas. O estudo tamb\'{e}m explora a adequa\c{c}\~{a}o de ResNet-50, VGG-16, iBOT, VMamba e LMFCN como arquiteturas backbone. Os resultados indicam que camadas iniciais s\~{a}o mais eficazes para classifica\c{c}\~{a}o de cor, enquanto camadas mais profundas se destacam no reconhecimento de textura. O iBOT alcan\c{c}ou a maior acur\'{a}cia em textura (97,20\%), enquanto ResNet-50 e iBOT empataram na melhor acur\'{a}cia em cor (95,87\%). Al\'{e}m disso, investigamos se a fus\~{a}o de caracter\'{i}sticas early-deep melhora o desempenho, concluindo que a simples concatena\c{c}\~{a}o n\~{a}o supera representa\c{c}\~{o}es especializadas de camada \'{u}nica.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Redes Neurais Convolucionais, M\'{e}tricas Profundas, Atributos, Vision Transformers, Modelos de Espa\c{c}o de Estados
+\end{IEEEkeywords}
+
+\section{Introdu\c{c}\~{a}o}
+
+Avan\c{c}os em redes convolucionais t\^{e}m possibilitado solu\c{c}\~{o}es de vis\~{a}o computacional cada vez mais vi\'{a}veis para aplica\c{c}\~{o}es industriais. Um exemplo not\'{a}vel \'{e} a recupera\c{c}\~{a}o de imagens no com\'{e}rcio eletr\^{o}nico, onde buscas podem ser realizadas usando texto, imagens ou uma combina\c{c}\~{a}o dos principais componentes de sistemas inovadores. Embora a busca baseada em texto permane\c{c}a o m\'{e}todo de consulta mais comum para mecanismos de busca, sua efic\'{a}cia depende fortemente de descri\c{c}\~{o}es detalhadas dos produtos. Para melhorar a experi\^{e}ncia do usu\'{a}rio, alguns mecanismos de busca incorporam busca baseada em imagem, oferecendo resultados significativamente mais precisos \cite{b1}.
+
+Mecanismos de busca baseados em conte\'{u}do de imagem apresentam desafios \'{u}nicos e encontram aplica\c{c}\~{o}es al\'{e}m do com\'{e}rcio eletr\^{o}nico, incluindo recupera\c{c}\~{a}o de imagens m\'{e}dicas, sistemas de informa\c{c}\~{a}o geogr\'{a}fica, vigil\^{a}ncia e outros \cite{b12}. O principal desafio reside em extrair com precis\~{a}o o conte\'{u}do relevante de uma imagem, particularmente quando o interesse do usu\'{a}rio \'{e} baseado em atributos espec\'{i}ficos como cor, textura ou sua combina\c{c}\~{a}o (Figura \ref{fig_patterns}). No contexto do com\'{e}rcio eletr\^{o}nico, este tipo de busca focada em atributos est\'{a} cada vez mais em demanda.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_patterns.png}}
+\caption{Seis diferentes padr\~{o}es baseados em cor e textura (adaptado de \cite{b2}).}
+\label{fig_patterns}
+\end{figure}
+
+A extra\c{c}\~{a}o de caracter\'{i}sticas de cor e textura tem sido um campo fundamental de estudo em Recupera\c{c}\~{a}o de Imagens Baseada em Conte\'{u}do (CBIR). M\'{e}todos cl\'{a}ssicos para extra\c{c}\~{a}o de cor incluem histogramas de cor, que quantificam a distribui\c{c}\~{a}o de cores em uma imagem, e momentos de cor, que capturam informa\c{c}\~{o}es espaciais como m\'{e}dia, vari\^{a}ncia e assimetria da distribui\c{c}\~{a}o de cores \cite{b24}. Para an\'{a}lise de textura, t\'{e}cnicas como filtros de Gabor, que analisam a imagem em diferentes escalas e orienta\c{c}\~{o}es, e Local Binary Pattern (LBP), que codifica padr\~{o}es de textura locais de forma robusta a varia\c{c}\~{o}es de ilumina\c{c}\~{a}o, s\~{a}o amplamente utilizadas \cite{b25}.
+
+Com o advento do aprendizado profundo, Redes Neurais Convolucionais (CNNs) tornaram-se o padr\~{a}o para extra\c{c}\~{a}o de caracter\'{i}sticas. Estudos como Baloian et al. \cite{b2} investigaram como diferentes camadas de uma ResNet-50 respondem a atributos de cor e textura, concluindo que camadas iniciais s\~{a}o mais sens\'{i}veis \`{a} cor, enquanto camadas mais profundas capturam melhor a textura. Outras pesquisas prop\~{o}em a fus\~{a}o de caracter\'{i}sticas de cor e textura extra\'{i}das por CNNs para criar um vetor de caracter\'{i}sticas mais rico e discriminativo \cite{b26}. Este trabalho se insere neste contexto, avaliando e comparando arquiteturas de aprendizado profundo, desde CNNs cl\'{a}ssicas at\'{e} os modelos mais recentes baseados em Transformers e Modelos de Espa\c{c}o de Estados, para a tarefa de recupera\c{c}\~{a}o de imagens baseada em atributos de cor e textura.
+
+O conjunto de dados utilizado neste estudo foi criado e disponibilizado por \cite{b2}, aproveitando imagens da plataforma Kaggle e outros reposit\'{o}rios online. Ele apresenta uma cole\c{c}\~{a}o diversificada de itens de vestu\'{a}rio, incluindo chap\'{e}us, vestidos, camisas, meias, bolsas e len\c{c}os. O conjunto de dados \'{e} organizado em dois subconjuntos distintos. O primeiro subconjunto foca na categoriza\c{c}\~{a}o de imagens por cor, com as seguintes classes: vermelho, preto, azul, verde, amarelo, cinza, marrom, rosa, roxo e laranja. Cada classe cont\'{e}m 100 imagens, resultando em um total de 1.000 imagens no conjunto de dados de cor, conforme ilustrado na Figura \ref{fig_color_samples}.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_color_samples.png}}
+\caption{Imagens de exemplo de cada classe no conjunto de dados de cor.}
+\label{fig_color_samples}
+\end{figure}
+
+O segundo conjunto de dados categoriza imagens com base em sua textura, com as seguintes classes: quadriculado, listrado, flores, leopardo, bolinhas, b\'{a}sico, paisley, argyle, pied-de-poule e lantejoulas. Da mesma forma, cada classe de textura cont\'{e}m 100 imagens, resultando em um total de 1.000 imagens no conjunto de dados de textura. Com base neste problema, o objetivo \'{e} avaliar um modelo de m\'{e}trica profunda e a sensibilidade de suas camadas para busca apenas por cor e textura. Considerando o desafio proposto, este estudo avalia alguns modelos citados na literatura. A inten\c{c}\~{a}o \'{e} descobrir como diferentes camadas se comportam em rela\c{c}\~{a}o a diferentes atributos, cores e texturas, realizando diferentes experimentos para determinar quais camadas ocultas fornecem a melhor representa\c{c}\~{a}o para cada um e sua combina\c{c}\~{a}o. As arquiteturas selecionadas incluem ResNet-50 \cite{b4}, VGG-16 \cite{b7}, VMamba \cite{b16}, iBOT \cite{b17} e LMFCN \cite{b28}.
+
+Os principais objetivos deste estudo s\~{a}o: (1) identificar qual arquitetura apresenta o melhor desempenho, avaliando uma arquitetura mais simples como VGG-16, um modelo mais complexo como ResNet-50, e modelos mais recentes; e (2) determinar quais camadas dentro de cada modelo fornecem a melhor representa\c{c}\~{a}o de atributos de cor e textura, bem como a combina\c{c}\~{a}o de ambos. Adicionalmente, investigamos se a fus\~{a}o de caracter\'{i}sticas de camadas especializadas melhora o desempenho de classifica\c{c}\~{a}o.
+
+Para guiar esta investiga\c{c}\~{a}o, abordamos v\'{a}rias quest\~{o}es de pesquisa. Primeiro, examinamos como a informa\c{c}\~{a}o de cor e textura se distribui ao longo da profundidade das arquiteturas CNN, Vision Transformer e Mamba para tarefas de classifica\c{c}\~{a}o visual---especificamente, em qual camada cada rede codifica cor versus textura? Segundo, investigamos qual camada da rede produz o melhor desempenho de classifica\c{c}\~{a}o para tarefas baseadas em cor e baseadas em textura. Terceiro, questionamos se a representa\c{c}\~{a}o da \'{u}ltima camada comumente utilizada \'{e} \'{o}tima para classifica\c{c}\~{a}o, ou se camadas intermedi\'{a}rias fornecem desempenho superior para atributos visuais de baixo n\'{i}vel como cor e textura. Quarto, avaliamos se a fus\~{a}o de caracter\'{i}sticas early--deep melhora o desempenho de classifica\c{c}\~{a}o em compara\c{c}\~{a}o com representa\c{c}\~{o}es de camada \'{u}nica. Finalmente, analisamos se os padr\~{o}es de representa\c{c}\~{a}o de cor e textura por camada s\~{a}o consistentes atrav\'{e}s dos tr\^{e}s paradigmas arquiteturais: CNNs, Transformers e Modelos de Espa\c{c}o de Estados.
+
+Este estudo est\'{a} organizado da seguinte forma: a Se\c{c}\~{a}o 2 revisa trabalhos relacionados, a Se\c{c}\~{a}o 3 detalha a metodologia aplicada, a Se\c{c}\~{a}o 4 discute os modelos backbone avaliados, a Se\c{c}\~{a}o 5 apresenta os resultados experimentais, e a Se\c{c}\~{a}o 6 apresenta as conclus\~{o}es.
+
+
+\section{Trabalhos Relacionados}
+
+O uso de redes convolucionais para representar similaridade de objetos \'{e} amplamente utilizado na literatura. Mecanismos de busca usam buscas por texto como seu principal m\'{e}todo de consulta, mas buscas usando consultas por imagem est\~{a}o avan\c{c}ando e trazendo resultados interessantes para este campo de pesquisa, como apresentado pelos autores em \cite{b2}. Al\'{e}m de usar imagens, eles investigaram camadas da ResNet-50 para determinar busca por cores e texturas. Em sua pesquisa, os autores concluem que as camadas iniciais da rede s\~{a}o melhores para cores e as camadas mais profundas para texturas. Na pesquisa, caracter\'{i}sticas s\~{a}o extra\'{i}das com ResNet-50 pr\'{e}-treinada com o conjunto de dados ImageNet \cite{b3}. Na extra\c{c}\~{a}o de caracter\'{i}sticas, a primeira camada convolucional \'{e} renomeada como Bloco 1, e blocos residuais 2 a 5. Na sa\'{i}da de cada bloco, uma camada de Global Average Pooling (GAP) foi aplicada e as sa\'{i}das dessas camadas foram usadas como entrada para um classificador k-nearest neighbor (KNN) com valida\c{c}\~{a}o cruzada de 5 folds.
+
+Em \cite{b10}, os autores empregaram redes neurais para aprender um conjunto de caracter\'{i}sticas usando categorias de objetos. Em \cite{b11} os autores prop\~{o}em t\'{e}cnicas de generaliza\c{c}\~{a}o de dom\'{i}nio multi-fonte para aprendizado cruzado. Os autores em \cite{b8} classificam esp\'{e}cies de plantas por imagem de folha usando a arquitetura de rede neural Siamesa, combinando caracter\'{i}sticas de camadas convolucionais intermedi\'{a}rias para melhorar representa\c{c}\~{o}es. Segundo os autores, a combina\c{c}\~{a}o de caracter\'{i}sticas de diferentes camadas apresenta um ganho de desempenho relevante e diferentes camadas trazem resultados diferentes. No estudo de \cite{b9}, os autores usaram uma rede neural Siamesa para definir o \'{i}ndice de similaridade de imagens de cada classe atrav\'{e}s de uma an\'{a}lise da folha inteira e partes dela. Em \cite{b13}, os autores apresentam um m\'{e}todo eficiente de extra\c{c}\~{a}o de caracter\'{i}sticas baseado no conceito de an\'{a}lise de textura em profundidade. Para isso, pacotes wavelet e autovalores de filtro de Gabor s\~{a}o usados para fins de representa\c{c}\~{a}o de imagem e um esquema de aprendizado parcialmente supervisionado baseado em K-nearest neighbors. Estudos tamb\'{e}m prop\~{o}em a combina\c{c}\~{a}o de caracter\'{i}sticas de cor e textura como um vetor de caracter\'{i}sticas \cite{b14}. Lin et al. \cite{b15} propuseram tr\^{e}s caracter\'{i}sticas de conte\'{u}do de imagem baseadas em cor, textura e distribui\c{c}\~{a}o de cor, como matriz de co-ocorr\^{e}ncia de cor (CCM), diferen\c{c}a entre pixels de padr\~{a}o de varredura (DBPSP) e histograma de cor para K-mean (CHKM) respectivamente.
+
+A fus\~{a}o de caracter\'{i}sticas multi-camada tem sido explorada como uma estrat\'{e}gia para combinar representa\c{c}\~{o}es de diferentes profundidades de redes neurais. A intui\c{c}\~{a}o \'{e} que camadas iniciais capturam caracter\'{i}sticas de baixo n\'{i}vel (bordas, cores) enquanto camadas mais profundas codificam informa\c{c}\~{o}es sem\^{a}nticas de alto n\'{i}vel, e combin\'{a}-las poderia produzir representa\c{c}\~{o}es mais ricas \cite{b26}. Estrat\'{e}gias comuns de fus\~{a}o incluem fus\~{a}o precoce (concatenando caracter\'{i}sticas antes da classifica\c{c}\~{a}o), fus\~{a}o tardia (combinando sa\'{i}das de classificadores) e fus\~{a}o aprendida usando mecanismos de aten\c{c}\~{a}o \cite{b27}. No entanto, a efic\'{a}cia de tais abordagens para tarefas espec\'{i}ficas de atributos como classifica\c{c}\~{a}o de cor e textura permanece pouco explorada.
+
+Avan\c{c}os recentes em aprendizado profundo introduziram novas arquiteturas que desafiam a domin\^{a}ncia dos Transformers. O modelo Mamba, proposto por Gu e Dao \cite{b16}, \'{e} um exemplo not\'{a}vel. \'{E} um Modelo de Espa\c{c}o de Estados (SSM) que alcan\c{c}a complexidade de tempo linear em modelagem de sequ\^{e}ncias, oferecendo uma vantagem computacional significativa sobre a complexidade quadr\'{a}tica dos Transformers. Os SSMs seletivos do Mamba permitem filtrar e recuperar informa\c{c}\~{o}es com base no conte\'{u}do, uma capacidade anteriormente considerada uma for\c{c}a chave dos mecanismos de aten\c{c}\~{a}o. Isso torna o Mamba uma alternativa promissora para v\'{a}rias modalidades, incluindo linguagem, \'{a}udio e gen\^{o}mica, onde demonstrou desempenho estado-da-arte.
+
+No dom\'{i}nio do aprendizado auto-supervisionado para vis\~{a}o, o modelo iBOT (Image BERT Pre-Training with Online Tokenizer), introduzido por Zhou et al. \cite{b17}, fez contribui\c{c}\~{o}es significativas. O iBOT usa uma abordagem de modelagem de imagem mascarada (MIM), similar \`{a} modelagem de linguagem mascarada do BERT, mas com uma inova\c{c}\~{a}o chave: um tokenizador online. Isso permite que o modelo aprenda um tokenizador visual semanticamente significativo simultaneamente com o objetivo MIM, eliminando a necessidade de um est\'{a}gio de pr\'{e}-treinamento separado para o tokenizador. A Large Margin Fully Convolutional Network (LMFCN) foi projetada para treinar Redes Totalmente Convolucionais (FCNs) cujas sa\'{i}das s\~{a}o subsequentemente usadas como caracter\'{i}sticas de entrada para um classificador de grande margem, especificamente uma M\'{a}quina de Vetores de Suporte (SVM). Durante o treinamento, o m\'{e}todo atualiza os pesos da FCN para gerar representa\c{c}\~{o}es de caracter\'{i}sticas que maximizam a margem entre classes, melhorando assim a precis\~{a}o de classifica\c{c}\~{a}o do SVM.
+
+
+\section{Metodologia Aplicada}
+
+Este estudo avalia diferentes arquiteturas de aprendizado profundo para identificar o modelo mais eficaz para recupera\c{c}\~{a}o de objetos baseada em cor e textura. Os modelos avaliados incluem duas Redes Neurais Convolucionais (CNNs) cl\'{a}ssicas, ResNet-50 e VGG-16, e tr\^{e}s arquiteturas de estudos recentes, VMamba, iBOT e LMFCN, que trazem novos paradigmas para modelagem de sequ\^{e}ncias e imagens.
+
+\subsection{ResNet-50}
+
+A Residual Network 50 (ResNet-50), introduzida por He et al. \cite{b4}, \'{e} uma rede neural convolucional profunda de 50 camadas. Sua inova\c{c}\~{a}o central \'{e} o uso de ``blocos residuais'' com conex\~{o}es de atalho, que permitem ao modelo aprender fun\c{c}\~{o}es residuais. Esta arquitetura aborda efetivamente o problema do desaparecimento do gradiente em redes muito profundas, permitindo o treinamento de modelos com centenas ou mesmo milhares de camadas mantendo alto desempenho. A ResNet-50 \'{e} amplamente utilizada como backbone para v\'{a}rias tarefas de vis\~{a}o computacional devido \`{a}s suas poderosas capacidades de extra\c{c}\~{a}o de caracter\'{i}sticas (Figura \ref{fig_resnet}).
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_resnet50.png}}
+\caption{Arquitetura do modelo ResNet-50. Adaptado de Mukherjee \cite{b23}, baseado no trabalho original de He et al. \cite{b4}.}
+\label{fig_resnet}
+\end{figure}
+
+\subsection{VGG-16}
+
+O modelo VGG-16, proposto por Simonyan e Zisserman, \'{e} uma rede neural convolucional caracterizada por sua simplicidade e profundidade \cite{b7}. \'{E} composto por 16 camadas, usando principalmente filtros convolucionais pequenos de 3x3 empilhados uns sobre os outros. Este empilhamento de filtros pequenos permite que o modelo tenha um grande campo receptivo mantendo um baixo n\'{u}mero de par\^{a}metros. Apesar de sua arquitetura relativamente simples, a VGG-16 \'{e} conhecida por seu excelente desempenho em classifica\c{c}\~{a}o de imagens e suas caracter\'{i}sticas provaram ser altamente transfer\'{i}veis para outras tarefas (Figura \ref{fig_vgg}).
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_vgg16.png}}
+\caption{Arquitetura do modelo VGG-16, ilustrando sua estrutura sequencial. Fonte: Simonyan \& Zisserman \cite{b7}.}
+\label{fig_vgg}
+\end{figure}
+
+\subsection{VMamba}
+
+O VMamba, desenvolvido por Gu e Dao \cite{b16}, representa uma nova classe de modelos de sequ\^{e}ncia baseados em Modelos de Espa\c{c}o de Estados Estruturados (SSMs). Diferentemente dos Transformers, que t\^{e}m complexidade quadr\'{a}tica em rela\c{c}\~{a}o ao comprimento da sequ\^{e}ncia, o Mamba processa sequ\^{e}ncias em tempo linear. Ele emprega um mecanismo de varredura seletiva que permite ao modelo propagar ou esquecer seletivamente informa\c{c}\~{o}es ao longo de uma sequ\^{e}ncia, possibilitando racioc\'{i}nio baseado em conte\'{u}do. Isso torna o Mamba altamente eficiente para sequ\^{e}ncias longas e um forte performer em diferentes modalidades, incluindo vis\~{a}o, onde pode ser adaptado como backbone para extra\c{c}\~{a}o de caracter\'{i}sticas (Figura \ref{fig_mamba}).
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_mamba.png}}
+\caption{Diagrama de blocos do Mamba, ilustrando o mecanismo SSM seletivo. Fonte: Gu \& Dao \cite{b16}.}
+\label{fig_mamba}
+\end{figure}
+
+\subsection{iBOT com Camadas Convolucionais}
+
+O modelo iBOT (Image BERT Pre-Training with Online Tokenizer), de Zhou et al. \cite{b17}, \'{e} um framework de aprendizado auto-supervisionado baseado em Vision Transformers (ViT). Ele usa um objetivo de Modelagem de Imagem Mascarada (MIM) onde partes de uma imagem s\~{a}o mascaradas, e o modelo deve prever o conte\'{u}do mascarado. Uma caracter\'{i}stica chave do iBOT \'{e} seu tokenizador online, que aprende a criar tokens visuais semanticamente ricos durante o processo de pr\'{e}-treinamento. Para este estudo, o iBOT \'{e} combinado com camadas convolucionais, criando um modelo h\'{i}brido. Esta abordagem aproveita os pontos fortes das CNNs em capturar caracter\'{i}sticas locais e detalhes finos, enquanto o componente Transformer modela contexto global e rela\c{c}\~{o}es entre patches de imagem (Figura \ref{fig_ibot}).
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_ibot.png}}
+\caption{Vis\~{a}o geral do framework iBOT, mostrando a arquitetura com tokenizador online. Fonte: Zhou et al. \cite{b17}.}
+\label{fig_ibot}
+\end{figure}
+
+\subsection{LMFCN}
+
+A arquitetura LMFCN \'{e} apresentada na Figura \ref{fig_lmfcn}. Ela recebe imagens do conjunto de treinamento T como entrada, extrai representa\c{c}\~{o}es de caracter\'{i}sticas usando uma FCN, e usa essas caracter\'{i}sticas para construir a matriz de kernel K para um classificador SVM. A FCN pode ser qualquer arquitetura convolucional capaz de produzir uma representa\c{c}\~{a}o latente dos dados, como uma TCNN \cite{b28}, ResNet, VGG ou rede Inception. A matriz D \'{e} uma matriz de dist\^{a}ncia definida usando a mesma m\'{e}trica da matriz de kernel K e \'{e} empregada para medir dist\^{a}ncias entre inst\^{a}ncias de treinamento e vetores de suporte do SVM. Com base nos resultados de classifica\c{c}\~{a}o do SVM, na matriz de dist\^{a}ncia e nos vetores de suporte, os par\^{a}metros da FCN s\~{a}o atualizados usando uma fun\c{c}\~{a}o de perda que aumenta a penalidade para (i) inst\^{a}ncias que est\~{a}o longe do vetor de suporte mais pr\'{o}ximo da mesma classe, (ii) inst\^{a}ncias que est\~{a}o pr\'{o}ximas de vetores de suporte da classe oposta, e (iii) inst\^{a}ncias que est\~{a}o pr\'{o}ximas de inst\^{a}ncias n\~{a}o-suporte da classe oposta. Este m\'{e}todo foi projetado principalmente para treinar FCNs pequenas e leves em conjuntos de dados de tamanho limitado, particularmente em tarefas de classifica\c{c}\~{a}o relacionadas a textura.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{fig_lmfcn.png}}
+\caption{Vis\~{a}o geral da LMFCN. Fonte: de Matos et al. \cite{b28}.}
+\label{fig_lmfcn}
+\end{figure}
+
+
+\section{Modelos Backbone Avaliados}
+
+Neste estudo, modelos cl\'{a}ssicos e modernos foram selecionados. A VGG-16 \'{e} uma CNN cl\'{a}ssica com 16 camadas ponderadas organizadas em 5 blocos convolucionais usando filtros 3×3, cada um seguido por max-pooling, com dimens\~{o}es de caracter\'{i}sticas de 64, 128, 256, 512 e 512. A ResNet-50 introduziu conex\~{o}es residuais (skip connections) permitindo redes mais profundas, consistindo de 4 blocos residuais principais com dimens\~{o}es de 256, 512, 1024 e 2048. Caracter\'{i}sticas s\~{a}o extra\'{i}das de ambas as CNNs usando Global Average Pooling (GAP).
+
+Para arquiteturas modernas, o iBOT (Image BERT Pre-Training with Online Tokenizer) \'{e} um Vision Transformer pr\'{e}-treinado usando modelagem de imagem mascarada auto-supervisionada, com a variante ViT-S/16 tendo 12 blocos transformer produzindo embeddings de 384 dimens\~{o}es extra\'{i}dos via token CLS. O VMamba adapta a arquitetura Mamba---um modelo de espa\c{c}o de estados seletivo---para tarefas visuais, alcan\c{c}ando complexidade linear diferentemente dos transformers; a variante VMamba-Tiny tem 4 est\'{a}gios com dimens\~{o}es de 96, 192, 384 e 768. Adicionalmente, o framework LMFCN foi avaliado usando arquiteturas TCNN e ResNet-18.
+
+Ambas as CNNs s\~{a}o citadas em diferentes trabalhos. Para o estudo, sa\'{i}das das cinco camadas iniciais treinadas com ImageNet foram avaliadas com CNN. A escolha dessas camadas \'{e} baseada em estudos publicados na literatura, \cite{b2} e \cite{b8}, que detectaram diferentes resultados em cada uma dessas camadas. Testes iniciais permitiram identificar quais camadas s\~{a}o melhores para cor e textura para cada uma dessas CNNs. Caracter\'{i}sticas foram extra\'{i}das usando Global Average Pooling na sa\'{i}da de cada camada. Os vetores gerados s\~{a}o alimentados ao algoritmo kNN (K-nearest neighbors) usando valida\c{c}\~{a}o cruzada de 5 folds.
+
+A LMFCN foi avaliada usando duas arquiteturas de rede totalmente convolucional (FCN): uma rede neural convolucional de textura (TCNN) com tr\^{e}s, quatro, cinco e seis camadas, e uma ResNet-18 pr\'{e}-treinada com as camadas totalmente conectadas finais removidas. Para a arquitetura ResNet-18, duas configura\c{c}\~{o}es foram examinadas: uma compreendendo todos os blocos convolucionais e outra retendo apenas os dois primeiros blocos. FCNs foram treinadas usando o framework LMFCN, e a precis\~{a}o de classifica\c{c}\~{a}o em cada camada FCN foi avaliada usando o m\'{e}todo de avalia\c{c}\~{a}o k-nearest neighbors (kNN) descrito anteriormente.
+
+
+\section{Resultados Experimentais}
+
+Esta se\c{c}\~{a}o apresenta a base de dados e experimentos conduzidos para responder aos objetivos propostos.
+
+\subsection{Protocolo Experimental}
+
+O conjunto de dados usado nesta pesquisa foi o mesmo usado pelos autores em \cite{b2}, consistindo de 10 classes para cor, cada uma contendo 100 imagens, e 10 classes para textura, tamb\'{e}m com 100 imagens cada, totalizando 1000 imagens para o conjunto de cor e 1000 imagens para o conjunto de textura. O banco de dados cont\'{e}m dois conjuntos de dados usando Kaggle, um agrupado por cor e outro por textura. A descri\c{c}\~{a}o desses conjuntos de dados \'{e} dada abaixo:
+
+(a) Conjunto de dados de cor: Cont\'{e}m 100 imagens de roupas em cada uma das seguintes cores: vermelho, preto, azul, verde, amarelo, cinza, marrom, rosa, roxo e laranja;
+
+(b) Conjunto de dados de textura: Cont\'{e}m 100 imagens de roupas de cada um dos seguintes padr\~{o}es de textura: quadriculado, listrado, flores, leopardo, bolinhas, b\'{a}sico, paisley, argyle, pied-de-poule e lantejoulas.
+
+O conjunto de dados \'{e} compilado de v\'{a}rios itens de vestu\'{a}rio, variando de meias a camisas. O banco de dados foi dividido em 70\% para treinamento e 30\% para teste usando um protocolo de valida\c{c}\~{a}o cruzada estratificada de 5 folds.
+
+Para reprodutibilidade, o particionamento de dados seguiu um procedimento determin\'{i}stico usando a fun\c{c}\~{a}o \texttt{train\_test\_split} do scikit-learn. Uma semente aleat\'{o}ria base de 42 foi usada, com cada fold $i$ ($i = 1, \ldots, 5$) usando semente $= 42 + i$. A amostragem estratificada garantiu que a propor\c{c}\~{a}o de cada classe fosse mantida tanto nos conjuntos de treinamento quanto de teste em todos os folds. Os valores de acur\'{a}cia reportados nas tabelas representam a m\'{e}dia entre todos os cinco folds, e a coluna Std indica o desvio padr\~{a}o, fornecendo uma medida de consist\^{e}ncia dos resultados entre diferentes parti\c{c}\~{o}es de dados.
+
+\subsection{Resultados LMFCN}
+
+A Tabela I apresenta os resultados obtidos no conjunto de dados de textura, indicando que aumentar a profundidade da TCNN leva a melhor desempenho, com a acur\'{a}cia aumentando consistentemente conforme a profundidade da FCN aumenta. Em contraste, a configura\c{c}\~{a}o ResNet-18 incluindo todos os quatro blocos convolucionais produziu desempenho kNN inferior nos dados de textura. Os resultados obtidos no conjunto de dados de cor indicam que, comparado ao conjunto de dados de textura, maior acur\'{a}cia de classifica\c{c}\~{a}o \'{e} alcan\c{c}ada a partir de camadas iniciais da rede. Na configura\c{c}\~{a}o ResNet-18 com quatro blocos convolucionais, uma degrada\c{c}\~{a}o na acur\'{a}cia foi observada na terceira camada. A LMFCN com seu classificador SVM alcan\c{c}ou o melhor desempenho para o conjunto de dados de textura para ResNet-18 com dois blocos, alcan\c{c}ando 96,87\% de acur\'{a}cia, e para o conjunto de dados de cor com TCNN com tr\^{e}s camadas, com 97,73\% de acur\'{a}cia.
+
+\begin{table}[htbp]
+\caption{Acur\'{a}cia das camadas ocultas de ResNet-18 e TCNN usando LMFCN para treinamento e ajuste fino.}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{M\'{e}todo} & \textbf{Cor(\%)} & \textbf{Textura(\%)}\\
+\hline
+TCNN3 Camada 1 & 93,33 & 48,73 \\
+\hline
+TCNN3 Camada 2 & 95,13 & 55,13 \\
+\hline
+TCNN3 Camada 3 & 95,94 & 58,27 \\
+\hline
+TCNN4 Camada 1 & 92,67 & 48,67 \\
+\hline
+TCNN4 Camada 2 & 94,34 & 54,73 \\
+\hline
+TCNN4 Camada 3 & 94,20 & 59,73 \\
+\hline
+TCNN4 Camada 4 & 94,80 & 60,40 \\
+\hline
+TCNN5 Camada 1 & 93,26 & 48,67 \\
+\hline
+TCNN5 Camada 2 & 94,87 & 55,33 \\
+\hline
+TCNN5 Camada 3 & 94,33 & 60,80 \\
+\hline
+TCNN5 Camada 4 & 94,67 & 62,27 \\
+\hline
+TCNN5 Camada 5 & 95,40 & 62,93 \\
+\hline
+TCNN6 Camada 1 & 92,87 & 49,33 \\
+\hline
+TCNN6 Camada 2 & 94,67 & 56,47 \\
+\hline
+TCNN6 Camada 3 & 94,73 & 60,87 \\
+\hline
+TCNN6 Camada 4 & 94,53 & 63,47 \\
+\hline
+TCNN6 Camada 5 & 94,33 & 63,27 \\
+\hline
+TCNN6 Camada 6 & 94,53 & 64,34 \\
+\hline
+ResNet18 (2 blocos) Camada 1 & 95,00 & 62,73 \\
+\hline
+ResNet18 (2 blocos) Camada 2 & 96,13 & 84,87 \\
+\hline
+ResNet18 (2 blocos) Camada 3 & 91,93 & 91,00 \\
+\hline
+ResNet18 (4 blocos) Camada 1 & 94,53 & 63,67 \\
+\hline
+ResNet18 (4 blocos) Camada 2 & 95,93 & 84,13 \\
+\hline
+ResNet18 (4 blocos) Camada 3 & 91,07 & 91,20 \\
+\hline
+ResNet18 (4 blocos) Camada 4 & 89,53 & 92,47 \\
+\hline
+ResNet18 (4 blocos) Camada 5 & 75,20 & 86,74 \\
+\hline
+\end{tabular}
+\label{tab1}
+\end{center}
+\end{table}
+
+\subsection{Resultados das CNNs Cl\'{a}ssicas}
+
+A Tabela II apresenta a acur\'{a}cia de classifica\c{c}\~{a}o obtida para as camadas ocultas de VGG-16 e ResNet-50. Caracter\'{i}sticas foram extra\'{i}das usando Global Average Pooling (GAP) e avaliadas com k-NN usando valida\c{c}\~{a}o cruzada de 5 folds. Os resultados revelam uma rela\c{c}\~{a}o clara entre profundidade da camada e sensibilidade ao atributo. Na VGG-16, a Camada 1 alcan\c{c}ou a maior acur\'{a}cia de cor (95,13\%), com o desempenho diminuindo progressivamente em camadas mais profundas at\'{e} atingir 55,07\% na Camada 5. Por outro lado, a acur\'{a}cia de textura melhorou com a profundidade, atingindo o pico na Camada 4 (94,73\%). A ResNet-50 exibiu comportamento similar: a Camada 2 alcan\c{c}ou o melhor resultado de cor (95,87\%), enquanto a Camada 3 foi mais eficaz para textura (93,27\%).
+
+\begin{table}[htbp]
+\caption{Acur\'{a}cia das camadas ocultas de VGG-16 e ResNet-50 para classifica\c{c}\~{a}o de cor e textura.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Camada} & \textbf{Cor} & \textbf{Std} & \textbf{Textura} & \textbf{Std} & \textbf{Dim}\\
+\hline
+VGG-16 Camada 1 & \textbf{95,13} & 0,81 & 70,73 & 2,25 & 64 \\
+\hline
+VGG-16 Camada 2 & 90,27 & 1,27 & 86,60 & 1,57 & 128 \\
+\hline
+VGG-16 Camada 3 & 85,47 & 2,33 & 93,20 & 1,48 & 256 \\
+\hline
+VGG-16 Camada 4 & 71,80 & 2,55 & \textbf{94,73} & 0,74 & 512 \\
+\hline
+VGG-16 Camada 5 & 55,07 & 2,64 & 89,40 & 1,64 & 512 \\
+\hline
+ResNet-50 Camada 1 & 95,47 & 0,78 & 83,40 & 1,36 & 256 \\
+\hline
+ResNet-50 Camada 2 & \textbf{95,87} & 0,50 & 90,67 & 1,65 & 512 \\
+\hline
+ResNet-50 Camada 3 & 88,27 & 1,12 & \textbf{93,27} & 0,25 & 1024 \\
+\hline
+ResNet-50 Camada 4 & 59,20 & 3,11 & 86,33 & 0,92 & 2048 \\
+\hline
+\end{tabular}
+\label{tab2}
+\end{center}
+\end{table}
+
+\subsection{Resultados das Arquiteturas Modernas}
+
+A avalia\c{c}\~{a}o foi estendida a arquiteturas modernas para verificar se este padr\~{a}o por camada generaliza al\'{e}m das CNNs tradicionais. A Tabela III mostra resultados para iBOT e VMamba. Para o iBOT, caracter\'{i}sticas foram extra\'{i}das de cada bloco transformer via token CLS, enquanto para o VMamba, caracter\'{i}sticas foram obtidas da sa\'{i}da de cada est\'{a}gio de processamento. O modelo iBOT demonstrou um gradiente particularmente pronunciado: a acur\'{a}cia de cor diminuiu de 94,53\% no Bloco 0 para 62,80\% no Bloco 11, enquanto a acur\'{a}cia de textura aumentou de 52,20\% para 97,20\% no Bloco 9 antes de diminuir ligeiramente nos blocos finais. Esta acur\'{a}cia de textura de 97,20\% representa o maior valor entre todas as arquiteturas avaliadas, indicando que Vision Transformers auto-supervisionados capturam representa\c{c}\~{o}es especialmente discriminativas para padr\~{o}es de textura. O VMamba mostrou comportamento mais comprimido devido \`{a} sua arquitetura de quatro est\'{a}gios, com o Est\'{a}gio 1 alcan\c{c}ando a melhor acur\'{a}cia de cor (94,41\%) e os Est\'{a}gios 2-3 alcan\c{c}ando a melhor acur\'{a}cia de textura (95,76\%).
+
+\begin{table}[htbp]
+\caption{Acur\'{a}cia dos blocos iBOT e est\'{a}gios VMamba para classifica\c{c}\~{a}o de cor e textura.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Camada} & \textbf{Cor} & \textbf{Std} & \textbf{Textura} & \textbf{Std} & \textbf{Dim}\\
+\hline
+iBOT Bloco 0 & 94,53 & 1,13 & 52,20 & 2,69 & 384 \\
+\hline
+iBOT Bloco 1 & 95,40 & 1,27 & 69,87 & 2,28 & 384 \\
+\hline
+iBOT Bloco 2 & \textbf{95,87} & 1,05 & 79,93 & 2,61 & 384 \\
+\hline
+iBOT Bloco 3 & 95,20 & 0,83 & 87,87 & 1,44 & 384 \\
+\hline
+iBOT Bloco 4 & 92,13 & 0,27 & 90,53 & 1,33 & 384 \\
+\hline
+iBOT Bloco 5 & 88,73 & 0,77 & 91,00 & 2,02 & 384 \\
+\hline
+iBOT Bloco 6 & 84,93 & 1,24 & 92,20 & 1,85 & 384 \\
+\hline
+iBOT Bloco 7 & 84,07 & 1,18 & 95,00 & 0,99 & 384 \\
+\hline
+iBOT Bloco 8 & 76,00 & 0,76 & 96,87 & 0,54 & 384 \\
+\hline
+iBOT Bloco 9 & 69,93 & 1,97 & \textbf{97,20} & 0,54 & 384 \\
+\hline
+iBOT Bloco 10 & 66,13 & 3,28 & 96,27 & 0,53 & 384 \\
+\hline
+iBOT Bloco 11 & 62,80 & 1,73 & 96,00 & 0,87 & 384 \\
+\hline
+VMamba Est\'{a}gio 1 & \textbf{94,41} & 0,52 & 93,86 & 1,07 & 96 \\
+\hline
+VMamba Est\'{a}gio 2 & 93,41 & 0,47 & \textbf{95,76} & 0,84 & 192 \\
+\hline
+VMamba Est\'{a}gio 3 & 78,34 & 3,75 & 95,76 & 0,75 & 384 \\
+\hline
+VMamba Est\'{a}gio 4 & 54,14 & 2,39 & 86,52 & 2,57 & 768 \\
+\hline
+\end{tabular}
+\label{tab3}
+\end{center}
+\end{table}
+
+A Figura 1 ilustra o comportamento de cada arquitetura em rela\c{c}\~{a}o \`{a} profundidade da camada, mostrando claramente o padr\~{a}o inverso entre cor e textura. Em todas as arquiteturas, a acur\'{a}cia de cor (linha azul) tende a diminuir com a profundidade, enquanto a acur\'{a}cia de textura (linha vermelha) aumenta at\'{e} atingir um pico em camadas intermedi\'{a}rias ou profundas.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{curvas_desempenho_profundidade.png}}
+\caption{Desempenho × Profundidade: Classifica\c{c}\~{a}o de Cor e Textura para VGG-16, ResNet-50, iBOT e VMamba. Marcadores indicam as melhores camadas para cada atributo (E=cor, D=textura).}
+\label{fig_depth}
+\end{figure}
+
+\subsection{Resumo dos Melhores Resultados}
+
+A Tabela IV consolida os melhores resultados obtidos por cada arquitetura. Para classifica\c{c}\~{a}o de cor, ResNet-50 e iBOT empataram com 95,87\% de acur\'{a}cia, seguidos de perto por VGG-16 (95,13\%) e VMamba (94,41\%). Para classifica\c{c}\~{a}o de textura, o iBOT se destacou com 97,20\%, superando VMamba (95,76\%), VGG-16 (94,73\%) e ResNet-50 (93,27\%). Estes resultados indicam que enquanto CNNs cl\'{a}ssicas permanecem competitivas para reconhecimento de cor, arquiteturas modernas---particularmente Vision Transformers auto-supervisionados---oferecem vantagens para tarefas baseadas em textura.
+
+\begin{table}[htbp]
+\caption{Melhor acur\'{a}cia alcan\c{c}ada por cada arquitetura backbone.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Backbone} & \textbf{Melhor Cor} & \textbf{Cor(\%)} & \textbf{Melhor Textura} & \textbf{Textura(\%)}\\
+\hline
+VGG-16 & Camada 1 & 95,13 & Camada 4 & 94,73 \\
+\hline
+ResNet-50 & Camada 2 & 95,87 & Camada 3 & 93,27 \\
+\hline
+iBOT & Bloco 2 & 95,87 & Bloco 9 & \textbf{97,20} \\
+\hline
+VMamba & Est\'{a}gio 1 & 94,41 & Est\'{a}gio 2 & 95,76 \\
+\hline
+\end{tabular}
+\label{tab4}
+\end{center}
+\end{table}
+
+A Figura 2 apresenta uma compara\c{c}\~{a}o direta entre todas as arquiteturas, com profundidade normalizada (0=camada inicial, 1=camada profunda) para permitir compara\c{c}\~{a}o entre modelos com diferentes n\'{u}meros de camadas. Todas as arquiteturas seguem o mesmo padr\~{a}o geral, com o iBOT mostrando o gradiente mais pronunciado.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{curvas_comparacao_arquiteturas.png}}
+\caption{Compara\c{c}\~{a}o Entre Arquiteturas: Acur\'{a}cia vs Profundidade Normalizada para classifica\c{c}\~{a}o de cor (esquerda) e textura (direita).}
+\label{fig_comparison}
+\end{figure}
+
+\subsection{Experimento 2: Fus\~{a}o de Caracter\'{i}sticas Early-Deep}
+
+Este experimento avalia se concatenar caracter\'{i}sticas da melhor camada de cor (E) e da melhor camada de textura (D) melhora o desempenho de classifica\c{c}\~{a}o. Para cada backbone, realizamos a fus\~{a}o como z = concat(E, D) e avaliamos com k-NN (k=5, valida\c{c}\~{a}o cruzada de 5 folds).
+
+\begin{table}[htbp]
+\caption{Configura\c{c}\~{a}o de fus\~{a}o para cada backbone.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Backbone} & \textbf{E (Cor)} & \textbf{Dim E} & \textbf{D (Textura)} & \textbf{Dim D} & \textbf{Dim z}\\
+\hline
+VGG-16 & Camada 1 & 64 & Camada 4 & 512 & 576 \\
+\hline
+ResNet-50 & Camada 2 & 512 & Camada 3 & 1024 & 1536 \\
+\hline
+iBOT & Bloco 2 & 384 & Bloco 9 & 384 & 768 \\
+\hline
+VMamba & Est\'{a}gio 1 & 96 & Est\'{a}gio 2 & 192 & 288 \\
+\hline
+\end{tabular}
+\label{tab5}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Resultados de fus\~{a}o para classifica\c{c}\~{a}o de cor.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Backbone} & \textbf{E (cor)} & \textbf{D (textura)} & \textbf{Z (fus\~{a}o)} & \textbf{$\Delta$}\\
+\hline
+VGG-16 & \textbf{95,13\%} & 71,80\% & 86,13\% & -9,00\% \\
+\hline
+ResNet-50 & \textbf{95,87\%} & 88,27\% & 94,13\% & -1,73\% \\
+\hline
+iBOT & \textbf{96,93\%} & 81,33\% & 85,13\% & -11,80\% \\
+\hline
+VMamba & \textbf{94,80\%} & 93,93\% & 94,13\% & -0,67\% \\
+\hline
+\end{tabular}
+\label{tab6}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Resultados de fus\~{a}o para classifica\c{c}\~{a}o de textura.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Backbone} & \textbf{E (cor)} & \textbf{D (textura)} & \textbf{Z (fus\~{a}o)} & \textbf{$\Delta$}\\
+\hline
+VGG-16 & 70,73\% & \textbf{94,73\%} & 94,73\% & 0,00\% \\
+\hline
+ResNet-50 & 90,67\% & 93,27\% & \textbf{93,53\%} & +0,27\% \\
+\hline
+iBOT & 78,33\% & \textbf{87,80\%} & 88,07\% & +0,27\% \\
+\hline
+VMamba & 88,40\% & \textbf{94,33\%} & 93,40\% & -0,93\% \\
+\hline
+\end{tabular}
+\label{tab7}
+\end{center}
+\end{table}
+
+A Figura 3 visualiza os resultados de fus\~{a}o, comparando a acur\'{a}cia de caracter\'{i}sticas da camada de cor (E), caracter\'{i}sticas da camada de textura (D) e fus\~{a}o concatenada (Z) para cada tarefa e arquitetura.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{exp2_fusao_comparacao.png}}
+\caption{Experimento 2: Fus\~{a}o Early-Deep. Compara\c{c}\~{a}o entre caracter\'{i}sticas da camada de cor (E), caracter\'{i}sticas da camada de textura (D) e fus\~{a}o concatenada (Z) para classifica\c{c}\~{a}o de cor e textura em cada arquitetura.}
+\label{fig_fusion}
+\end{figure}
+
+A Figura 4 apresenta o impacto da fus\~{a}o relativo \`{a} melhor camada individual, mostrando claramente que a fus\~{a}o por concatena\c{c}\~{a}o raramente melhora o desempenho e frequentemente o degrada, especialmente para classifica\c{c}\~{a}o de cor.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.48\textwidth]{exp2_fusao_improvement.png}}
+\caption{Impacto da Fus\~{a}o: Melhoria (ou degrada\c{c}\~{a}o) da fus\~{a}o Z relativa \`{a} melhor camada individual (E ou D) para cada tarefa.}
+\label{fig_impact}
+\end{figure}
+
+Os resultados de fus\~{a}o mostram que a simples concatena\c{c}\~{a}o geralmente n\~{a}o melhora o desempenho de classifica\c{c}\~{a}o. Para classifica\c{c}\~{a}o de cor, a fus\~{a}o degradou consistentemente a acur\'{a}cia comparada ao uso apenas da camada especializada de cor (E), com o iBOT mostrando a maior degrada\c{c}\~{a}o (-11,80\%). Para classifica\c{c}\~{a}o de textura, os resultados foram mistos, com melhorias m\'{i}nimas para ResNet-50 e iBOT (+0,27\%) mas degrada\c{c}\~{a}o para VMamba (-0,93\%). Estes resultados indicam que representa\c{c}\~{o}es especializadas de camada \'{u}nica s\~{a}o mais eficazes que fus\~{a}o multi-camada ing\^{e}nua.
+
+\subsection{Fus\~{a}o de Caracter\'{i}sticas Early-Deep com LMFCN}
+
+Para avaliar se o padr\~{a}o observado em arquiteturas anteriores se mant\'{e}m para o framework LMFCN, experimentos de fus\~{a}o tamb\'{e}m foram conduzidos concatenando caracter\'{i}sticas das melhores camadas para cor e textura. A Tabela VIII apresenta a configura\c{c}\~{a}o de fus\~{a}o usada para cada arquitetura LMFCN.
+
+\begin{table}[htbp]
+\caption{Configura\c{c}\~{a}o de fus\~{a}o para cada arquitetura LMFCN.}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Arquitetura} & \textbf{Camadas Fundidas} & \textbf{Dim z}\\
+\hline
+TCNN3 & Camada 1 + Camada 2 & 1920 \\
+\hline
+TCNN4 & Camada 2 + Camada 4 & 1920 \\
+\hline
+TCNN5 & Camada 2 + Camada 5 & 1920 \\
+\hline
+TCNN6 & Camada 6 + Camada 3 & 1920 \\
+\hline
+ResNet-18 (2 blocos) & Camada 1 + Camada 2 & 1920 \\
+\hline
+ResNet-18 (4 blocos) & Camada 3 + Camada 1 & 3200 \\
+\hline
+\end{tabular}
+\label{tab8}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Resultados de fus\~{a}o LMFCN para classifica\c{c}\~{a}o de textura.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Arquitetura} & \textbf{Melhor Camada(\%)} & \textbf{Fus\~{a}o(\%)} & \textbf{$\Delta$}\\
+\hline
+TCNN3 & \textbf{58,27} & 56,07 & -2,20\% \\
+\hline
+TCNN4 & \textbf{60,40} & 58,07 & -2,33\% \\
+\hline
+TCNN5 & \textbf{62,93} & 58,47 & -4,46\% \\
+\hline
+TCNN6 & \textbf{64,34} & 62,87 & -1,47\% \\
+\hline
+ResNet-18 (2 blocos) & \textbf{91,00} & 89,40 & -1,60\% \\
+\hline
+ResNet-18 (4 blocos) & \textbf{92,47} & 91,93 & -0,54\% \\
+\hline
+\end{tabular}
+\label{tab9}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Resultados de fus\~{a}o LMFCN para classifica\c{c}\~{a}o de cor.}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Arquitetura} & \textbf{Melhor Camada(\%)} & \textbf{Fus\~{a}o(\%)} & \textbf{$\Delta$}\\
+\hline
+TCNN3 & \textbf{95,94} & 95,27 & -0,67\% \\
+\hline
+TCNN4 & \textbf{94,80} & 93,20 & -1,60\% \\
+\hline
+TCNN5 & \textbf{95,40} & 95,07 & -0,33\% \\
+\hline
+TCNN6 & 94,73 & \textbf{95,53} & +0,80\% \\
+\hline
+ResNet-18 (2 blocos) & 96,13 & \textbf{96,33} & +0,20\% \\
+\hline
+ResNet-18 (4 blocos) & \textbf{95,93} & 94,80 & -1,13\% \\
+\hline
+\end{tabular}
+\label{tab10}
+\end{center}
+\end{table}
+
+Os resultados de fus\~{a}o LMFCN confirmam o padr\~{a}o observado em outras arquiteturas. Para classifica\c{c}\~{a}o de textura, a fus\~{a}o degradou consistentemente a acur\'{a}cia comparada \`{a} melhor camada individual, com quedas variando de -0,54\% (ResNet-18 com 4 blocos) a -4,46\% (TCNN5). Para classifica\c{c}\~{a}o de cor, os resultados foram mistos: enquanto a maioria das configura\c{c}\~{o}es mostrou degrada\c{c}\~{a}o, TCNN6 (+0,80\%) e ResNet-18 com 2 blocos (+0,20\%) mostraram pequenas melhorias. Notavelmente, o classificador SVM da LMFCN alcan\c{c}ou os melhores resultados absolutos para cor (97,73\% com TCNN3) e textura (96,87\% com ResNet-18 com 2 blocos), superando a fus\~{a}o por concatena\c{c}\~{a}o em ambos os casos.
+
+
+\section{Discuss\~{a}o}
+
+Os resultados experimentais apresentados neste estudo fornecem evid\^{e}ncias de que o padr\~{a}o de sensibilidade por camada previamente observado em CNNs cl\'{a}ssicas se estende a arquiteturas modernas baseadas em Vision Transformers e Modelos de Espa\c{c}o de Estados. Em todos os quatro backbones avaliados, camadas iniciais capturaram consistentemente caracter\'{i}sticas mais adequadas para classifica\c{c}\~{a}o de cor, enquanto camadas mais profundas se mostraram mais eficazes para reconhecimento de textura. Este padr\~{a}o se manteve independentemente do paradigma arquitetural---seja convolucional (VGG-16, ResNet-50), baseado em aten\c{c}\~{a}o (iBOT) ou baseado em espa\c{c}o de estados (VMamba).
+
+Diferen\c{c}as de desempenho entre arquiteturas oferecem insights sobre suas caracter\'{i}sticas representacionais. A excepcional acur\'{a}cia de textura do iBOT (97,20\%) sugere que o objetivo de modelagem de imagem mascarada auto-supervisionada encoraja o aprendizado de representa\c{c}\~{o}es estruturais ricas em camadas mais profundas. A dimensionalidade de caracter\'{i}sticas relativamente uniforme entre os blocos do iBOT (384 dimens\~{o}es) contrasta com dimens\~{o}es crescentes em CNNs e VMamba, ainda assim o iBOT alcan\c{c}ou discrimina\c{c}\~{a}o superior de textura. Isso indica que a qualidade das representa\c{c}\~{o}es aprendidas, em vez de sua dimensionalidade, \'{e} o fator determinante para classifica\c{c}\~{a}o de textura.
+
+O experimento de fus\~{a}o early-deep revelou que a simples concatena\c{c}\~{a}o n\~{a}o melhora o desempenho de classifica\c{c}\~{a}o. Para classifica\c{c}\~{a}o de cor, a fus\~{a}o degradou consistentemente a acur\'{a}cia comparada ao uso apenas da camada especializada de cor, com o iBOT mostrando a maior degrada\c{c}\~{a}o (-11,80\%). Para classifica\c{c}\~{a}o de textura, os resultados foram marginais no m\'{a}ximo (+0,27\% para ResNet-50 e iBOT). Estes resultados indicam que representa\c{c}\~{o}es especializadas de camada \'{u}nica s\~{a}o mais eficazes que fus\~{a}o multi-camada ing\^{e}nua, e mecanismos de fus\~{a}o mais sofisticados (como abordagens baseadas em aten\c{c}\~{a}o ou pondera\c{c}\~{a}o aprendida) podem ser necess\'{a}rios para se beneficiar de caracter\'{i}sticas multi-camada.
+
+As implica\c{c}\~{o}es pr\'{a}ticas destes achados s\~{a}o significativas para sistemas de recupera\c{c}\~{a}o de imagens baseados em conte\'{u}do. Em vez de usar caracter\'{i}sticas da camada final de uma rede pr\'{e}-treinada---como \'{e} pr\'{a}tica comum---nossos resultados sugerem que a extra\c{c}\~{a}o de caracter\'{i}sticas deve ser espec\'{i}fica por camada com base no atributo alvo. Para aplica\c{c}\~{o}es que requerem recupera\c{c}\~{a}o baseada em cor, caracter\'{i}sticas de camadas iniciais devem ser preferidas, enquanto recupera\c{c}\~{a}o baseada em textura se beneficia de representa\c{c}\~{o}es de camadas mais profundas. Al\'{e}m disso, a escolha da arquitetura backbone deve considerar o atributo prim\'{a}rio de interesse: CNNs cl\'{a}ssicas oferecem um bom equil\'{i}brio para tarefas de cor, enquanto o iBOT fornece vantagens substanciais para aplica\c{c}\~{o}es focadas em textura.
+
+
+\section{Conclus\~{o}es}
+
+Este estudo apresenta uma avalia\c{c}\~{a}o abrangente da extra\c{c}\~{a}o de caracter\'{i}sticas de camadas ocultas em m\'{u}ltiplas arquiteturas de aprendizado profundo para classifica\c{c}\~{a}o de cor e textura em imagens de moda. Avaliamos CNNs cl\'{a}ssicas (VGG-16 e ResNet-50), arquiteturas modernas (iBOT e VMamba) e o framework LMFCN.
+
+Experimentos confirmam que o padr\~{a}o de sensibilidade por camada observado em estudos anteriores se estende a Vision Transformers e Modelos de Espa\c{c}o de Estados modernos: camadas iniciais s\~{a}o mais eficazes para classifica\c{c}\~{a}o de cor, enquanto camadas mais profundas se destacam no reconhecimento de textura. Entre as arquiteturas avaliadas, o iBOT alcan\c{c}ou a maior acur\'{a}cia de textura (97,20\% no Bloco 9), enquanto ResNet-50 e iBOT empataram na melhor acur\'{a}cia de cor (95,87\%).
+
+Adicionalmente, a simples fus\~{a}o por concatena\c{c}\~{a}o de caracter\'{i}sticas das melhores camadas de cor e textura n\~{a}o melhora o desempenho sobre representa\c{c}\~{o}es especializadas de camada \'{u}nica, sugerindo que mecanismos de fus\~{a}o mais sofisticados s\~{a}o necess\'{a}rios.
+
+Estes achados t\^{e}m implica\c{c}\~{o}es pr\'{a}ticas para sistemas de recupera\c{c}\~{a}o de imagens baseados em conte\'{u}do, sugerindo que a extra\c{c}\~{a}o de caracter\'{i}sticas deve ser espec\'{i}fica por atributo em vez de depender de representa\c{c}\~{o}es da camada final. Trabalhos futuros investigar\~{a}o a combina\c{c}\~{a}o de caracter\'{i}sticas de camadas \'{o}timas entre diferentes arquiteturas e mecanismos de fus\~{a}o baseados em aten\c{c}\~{a}o para potencialmente melhorar o desempenho de classifica\c{c}\~{a}o.
+
+
+\section*{Agradecimentos}
+
+Este trabalho \'{e} apoiado pelo Programa de P\'{o}s-Gradua\c{c}\~{a}o em Inform\'{a}tica da Pontif\'{i}cia Universidade Cat\'{o}lica do Paran\'{a} e parcialmente apoiado pelo Conselho Nacional de Desenvolvimento Cient\'{i}fico e Tecnol\'{o}gico (CNPq) vinculado ao Minist\'{e}rio da Ci\^{e}ncia, Tecnologia e Inova\c{c}\~{a}o, para fomentar a pesquisa no Brasil.
+
+
+\begin{thebibliography}{00}
+\bibitem{b1} S. R. Dubey, ``A decade survey of content based image retrieval using deep learning,'' IEEE Trans. Circuits Syst. Video Technol., vol. 32, no. 5, pp. 2687--2704, 2021.
+\bibitem{b2} A. Baloian, N. Murrugarra-Llerena, and J. M. Saavedra, ``Scalable visual attribute extraction through hidden layers of a residual convnet,'' arXiv preprint arXiv:2104.00161, 2021.
+\bibitem{b3} J. Deng, W. Dong, R. Socher, L.-J. Li, K. Li, and L. Fei-Fei, ``ImageNet: A large-scale hierarchical image database,'' in Proc. IEEE CVPR, 2009, pp. 248--255.
+\bibitem{b4} K. He, X. Zhang, S. Ren, and J. Sun, ``Deep residual learning for image recognition,'' in Proc. IEEE CVPR, 2016, pp. 770--778.
+\bibitem{b7} K. Simonyan and A. Zisserman, ``Very deep convolutional networks for large-scale image recognition,'' arXiv preprint arXiv:1409.1556, 2014.
+\bibitem{b8} M. Moresco, A. D. S. Britto, Y. M. Costa, L. J. Senger, and A. G. Hochuli, ``Combining multi-layer features for plant species classification in a Siamese network,'' in Proc. IEEE SMC, 2022, pp. 2446--2451.
+\bibitem{b9} V. M. Ara\'{u}jo, A. S. Britto Jr., L. S. Oliveira, and A. L. Koerich, ``Two-view fine-grained classification of plant species,'' Neurocomputing, vol. 467, pp. 427--441, 2022.
+\bibitem{b10} K. Liang, H. Chang, S. Shan, and X. Chen, ``A unified multiplicative framework for attribute learning,'' in Proc. IEEE ICCV, 2015, pp. 2506--2514.
+\bibitem{b11} C. Gan, T. Yang, and B. Gong, ``Learning attributes equals multi-source domain generalization,'' in Proc. IEEE CVPR, 2016, pp. 87--97.
+\bibitem{b12} S. M. Youssef, ``ICTEDCT-CBIR: Integrating curvelet transform with enhanced dominant colors extraction and texture analysis for efficient content-based image retrieval,'' Comput. Electr. Eng., vol. 38, no. 5, pp. 1358--1376, 2012.
+\bibitem{b13} A. Irtaza, M. A. Jaffar, E. Aleisa, and T. S. Choi, ``Embedding neural networks for semantic association in content based image retrieval,'' Multimedia Tools Appl., vol. 72, pp. 1911--1931, 2014.
+\bibitem{b14} H. F. Atlam, G. Attiya, and N. El-Fishawy, ``Integration of color and texture features in CBIR system,'' Int. J. Comput. Appl., vol. 164, no. 3, pp. 23--29, 2017.
+\bibitem{b15} C. H. Lin, R. T. Chen, and Y. K. Chan, ``A smart content-based image retrieval system based on color and texture feature,'' Image Vis. Comput., vol. 27, no. 6, pp. 658--665, 2009.
+\bibitem{b16} A. Gu and T. Dao, ``Mamba: Linear-time sequence modeling with selective state spaces,'' arXiv preprint arXiv:2312.00752, 2023.
+\bibitem{b17} J. Zhou et al., ``iBOT: Image BERT pre-training with online tokenizer,'' arXiv preprint arXiv:2111.07832, 2021.
+\bibitem{b23} D. Mukherjee, R. Mondal, P. K. Singh, R. Sarkar, and D. Bhattacharjee, ``EnsembleNet: A hybrid approach for vehicle detection,'' Neural Comput. Appl., vol. 32, no. 15, pp. 14207--14228, 2020.
+\bibitem{b24} J. Yue, Z. Li, L. Liu, and Z. Fu, ``Content-based image retrieval using color and texture,'' in Proc. ICIG, 2011, pp. 833--837.
+\bibitem{b25} E. Prakasa, ``Texture feature extraction by using local binary pattern,'' INKOM J., vol. 1, no. 1, pp. 1--6, 2016.
+\bibitem{b26} J. Long, E. Shelhamer, and T. Darrell, ``Fully convolutional networks for semantic segmentation,'' in Proc. IEEE CVPR, 2015, pp. 3431--3440.
+\bibitem{b27} Y. Guo, Y. Liu, T. Georgiou, and M. S. Lew, ``A review of semantic segmentation using deep neural networks,'' Int. J. Multimedia Inf. Retr., vol. 7, no. 2, pp. 87--93, 2018.
+\bibitem{b28} J. de Matos, L. E. S. de Oliveira, A. D. S. Britto Jr., and A. L. Koerich, ``Large-margin representation learning for texture classification,'' Pattern Recognit. Lett., vol. 170, pp. 39--47, 2023.
+\end{thebibliography}
+
+\end{document}

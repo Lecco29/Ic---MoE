@@ -1,0 +1,31 @@
+# Experimento 3 — MoE (Mixture-of-Experts) Adaptativo Early+Deep
+experiment: exp03_moe
+description: "Router aprendido que pondera adaptativamente features early e deep. Backbone congelado, treina hE + hD + Router com CrossEntropy."
+
+protocol:
+  folds: 5
+  split: "70/30"
+  knn_k: 5
+
+training:
+  epochs: 30
+  batch_size: 32
+  lr: 0.0001
+  optimizer: AdamW
+  weight_decay: 0.00001
+  scheduler: CosineAnnealingLR
+  projection_dim: 256  # dimensão d de hE, hD e Router
+
+architecture:
+  backbone: frozen
+  projection_head: "Linear + LayerNorm + ReLU"
+  router: "MLP [2d → 128 → 2] + Softmax"
+  fusion: "z = alpha * fE + beta * fD"
+
+early_deep_pairs:
+  ibot:    {early: block2,  deep: block9,  dims: [384, 384]}
+  resnet50: {early: layer1, deep: layer3,  dims: [256, 1024]}
+  vgg16:   {early: pool1,   deep: pool3,   dims: [64, 256]}
+  vmamba:  {early: stage1,  deep: stage2,  dims: [192, 384]}
+
+attributes: [color, texture]
