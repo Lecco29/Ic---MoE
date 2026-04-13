@@ -54,6 +54,11 @@ data/images/
 # Paper
 paper/
 
+# Scripts e planilhas de outputs
+outputs/gerar_curvas_desempenho.py
+outputs/gerar_planilha_resultados.py
+outputs/resultados_experimentos.xlsx
+
 # Temporary files
 *.tmp
 *.temp
