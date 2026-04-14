@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-# experimento 3 - MoE (Mixture of Experts) para fusao adaptativa de features early/deep
-# a ideia e treinar um router que aprende quanto usar da camada rasa (cor) e da camada
-# profunda (textura) pra cada imagem
-#
-# como usar:
-#   python run.py --backbone ibot --atributo color
-#   python run.py --backbone resnet50 --atributo texture --epocas 50
-#   python run.py --backbone ibot --atributo both  (roda color e texture)
-
 import os
 import sys
 import argparse
