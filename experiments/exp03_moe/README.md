@@ -1,19 +1,18 @@
-# Experimento 3 — MoE (Mixture of Experts)
+# Experimento 3 — MoE 
 
 Fusão adaptativa de features usando um router que aprende, por imagem, quanto peso dar
-para a representação de cor (camada rasa) vs textura (camada profunda).
+para a representação de cor camada rasa vs textura camada profunda.
 
 ## Motivação
 
 Os experimentos 1 e 2 mostraram que camadas rasas capturam melhor cor e camadas profundas
-capturam melhor textura. Em vez de concatenar fixo (Exp02) ou escolher uma só (Exp01), o MoE
+capturam melhor textura. Em vez de concatenar fixo do Exp02 ou escolher uma só do Exp01, o MoE
 aprende esse balanço automaticamente — por imagem, não globalmente.
 
-## Arquitetura (sugestão do Prof. Alceu Britto Jr.)
+## Arquitetura 
 
 Dado uma imagem `x`, o backbone `B(x)` extrai três embeddings de camadas diferentes:
 
-```
 B(x) → fE_raw   (camada rasa  — early, ex: Block 2 no iBOT)
       → fD_raw   (camada deep  — ex: Block 9 no iBOT)
       → fL_raw   (última camada)
@@ -24,16 +23,12 @@ hD(fD_raw) → fD  [256d]
 Router(fE, fD) → α, β      (α + β = 1)
 
 z = α · fE + β · fD
-```
 
 `hE` e `hD` são projeções lineares que padronizam os embeddings para o mesmo tamanho (256d),
 independente do backbone usado. O router recebe `fE` e `fD` concatenados e decide os pesos.
 
 ## Router
 
-Código base fornecido pelo Prof. Alceu Britto Jr.:
-
-```python
 class Router(nn.Module):
     def __init__(self, d=256, hidden=128):
         super().__init__()
@@ -51,7 +46,7 @@ class Router(nn.Module):
         alpha = weights[:, 0:1]           # peso para cor
         beta  = weights[:, 1:2]           # peso para textura
         return alpha, beta
-```
+
 
 Se a imagem tem cor como atributo dominante: α alto, β baixo. Se textura for mais
 discriminativa: α baixo, β alto. O router aprende isso durante o treino.
@@ -91,11 +86,3 @@ Argumentos:
 - 30 épocas, AdamW lr=1e-4, CosineAnnealingLR
 - Avaliação final: KNN k=5 com StandardScaler nos embeddings z
 
-## Resultados (acurácia média, 5 folds)
-
-| Backbone  | Cor (%)       | Textura (%)   |
-|-----------|---------------|---------------|
-| iBOT      | 97.33 ± 0.56  | 95.47 ± 0.96  |
-| ResNet50  | 97.27 ± 0.71  | 97.67 ± 0.47  |
-| VGG16     | 93.40 ± 0.71  | 96.13 ± 1.00  |
-| VMamba    | 96.93 ± 1.02  | 98.00 ± 0.73  |
