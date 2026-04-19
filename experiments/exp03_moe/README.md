@@ -3,7 +3,7 @@
 Fusão adaptativa de features usando um router que aprende, por imagem, quanto peso dar
 para a representação de cor camada rasa vs textura camada profunda.
 
-## Motivação
+## Ideia
 
 Os experimentos 1 e 2 mostraram que camadas rasas capturam melhor cor e camadas profundas
 capturam melhor textura. Em vez de concatenar fixo do Exp02 ou escolher uma só do Exp01, o MoE
@@ -20,7 +20,7 @@ B(x) → fE_raw   (camada rasa  — early, ex: Block 2 no iBOT)
 hE(fE_raw) → fE  [256d]
 hD(fD_raw) → fD  [256d]
 
-Router(fE, fD) → α, β      (α + β = 1)
+Router(fE, fD) → α, β      pesos por imagem (α + β = 1)
 
 z = α · fE + β · fD
 
@@ -53,9 +53,9 @@ discriminativa: α baixo, β alto. O router aprende isso durante o treino.
 
 ## Componentes (models/moe.py)
 
-- `CabecaProjecao` — Linear + LayerNorm + ReLU, projeta para d=256
-- `Router` — MLP [2d → 128 → 2] + Softmax
-- `BackboneIBOT` — ViT-S/16, early=block2, deep=block9
+- `CabecaProjecao` — Linear + LayerNorm + ReLU, projeta pra dim d=256
+- `Router` — MLP [2d → 128 → 2] + Softmax (código base do Prof. Alceu Britto Jr.)
+- `BackboneIBOT` — ViT-S/16 via timm, early=block2, deep=block9
 - `BackboneResNet50` — early=layer1 (256d), deep=layer3 (1024d)
 - `BackboneVGG16` — early=pool1 (64d), deep=pool3 (256d)
 - `BackboneVMamba` — early=stage1 (192d), deep=stage2 (384d)
@@ -69,7 +69,7 @@ python run.py --backbone resnet50 --atributo texture
 python run.py --backbone vmamba --atributo both --epocas 50
 ```
 
-Argumentos:
+Argumentos disponíveis:
 - `--backbone`: ibot | resnet50 | vgg16 | vmamba
 - `--atributo`: color | texture | both
 - `--epocas`: número de épocas (padrão: 30)
@@ -85,4 +85,3 @@ Argumentos:
 - Backbone congelado — só hE, hD e router treinam
 - 30 épocas, AdamW lr=1e-4, CosineAnnealingLR
 - Avaliação final: KNN k=5 com StandardScaler nos embeddings z
-

@@ -21,7 +21,9 @@ PASTA_RAIZ = os.path.dirname(os.path.dirname(PASTA_BASE))
 PASTA_DADOS = os.path.join(PASTA_RAIZ, 'data')
 
 sys.path.insert(0, PASTA_BASE)
+sys.path.insert(0, PASTA_RAIZ)
 from models.moe import criar_modelo_moe
+from src.evaluation.retrieval import computar_metricas_retrieval
 
 
 # dataset simples que carrega imagem e retorna o label como inteiro
@@ -134,6 +136,7 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
         raise FileNotFoundError(f"pasta de folds nao encontrada: {pasta_folds}")
 
     resultados = []
+    metricas_retrieval = []
 
     for fold in range(1, 6):
         print(f"\n--- Fold {fold}/5 ---")
@@ -207,8 +210,13 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
         acc_knn = accuracy_score(y_teste, predicoes) * 100
         f1_knn = f1_score(y_teste, predicoes, average='weighted') * 100
 
+        ret = computar_metricas_retrieval(z_treino_norm, y_treino, z_teste_norm, y_teste)
+        metricas_retrieval.append(ret)
+
         print(f"  KNN acc: {acc_knn:.2f}%  F1: {f1_knn:.2f}%")
-        resultados.append({'fold': fold, 'acuracia': acc_knn, 'f1': f1_knn})
+        print(f"  CBIR  mAP@10: {ret['map_at_10']:.2f}%  R@1: {ret['r_at_1']:.2f}%  R@5: {ret['r_at_5']:.2f}%")
+        resultados.append({'fold': fold, 'acuracia': acc_knn, 'f1': f1_knn,
+                           'map_at_10': ret['map_at_10'], 'r_at_1': ret['r_at_1'], 'r_at_5': ret['r_at_5']})
 
     if not resultados:
         print("nenhum fold processado")
@@ -220,23 +228,35 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
     std_acc = np.std(accs)
     media_f1 = np.mean(f1s)
 
+    media_map  = np.mean([r['map_at_10'] for r in resultados])
+    media_r1   = np.mean([r['r_at_1']    for r in resultados])
+    media_r5   = np.mean([r['r_at_5']    for r in resultados])
+
     print(f"\n{'='*60}")
     print(f"RESULTADO FINAL - {nome_backbone.upper()} {atributo.upper()}")
     print(f"  Acuracia: {media_acc:.2f}% +/- {std_acc:.2f}%")
     print(f"  F1:       {media_f1:.2f}%")
+    print(f"  mAP@10:   {media_map:.2f}%")
+    print(f"  R@1:      {media_r1:.2f}%")
+    print(f"  R@5:      {media_r5:.2f}%")
     print(f"{'='*60}")
 
-    # salva no csv junto com os resultados dos outros experimentos
     df = pd.DataFrame(resultados)
     df['acuracia_media'] = media_acc
     df['acuracia_std'] = std_acc
     df['f1_media'] = media_f1
+    df['map_at_10_media'] = media_map
+    df['r_at_1_media'] = media_r1
+    df['r_at_5_media'] = media_r5
     arquivo_csv = os.path.join(PASTA_BASE, 'results', f'{nome_backbone}_{atributo}.csv')
     os.makedirs(os.path.dirname(arquivo_csv), exist_ok=True)
     df.to_csv(arquivo_csv, index=False)
     print(f"salvo em: {arquivo_csv}")
 
-    return {'acuracia_media': media_acc, 'acuracia_std': std_acc, 'f1_media': media_f1}
+    return {
+        'acuracia_media': media_acc, 'acuracia_std': std_acc, 'f1_media': media_f1,
+        'map_at_10': media_map, 'r_at_1': media_r1, 'r_at_5': media_r5,
+    }
 
 
 def main():
@@ -282,8 +302,11 @@ def main():
 
     if len(todos) > 1:
         print("\n=== resumo ===")
+        print(f"  {'Atributo':<10} {'Acc(%)':>8} {'mAP@10':>8} {'R@1':>7} {'R@5':>7}")
+        print("  " + "-" * 45)
         for atributo, res in todos.items():
-            print(f"  {atributo:8s}: {res['acuracia_media']:.2f}% +/- {res['acuracia_std']:.2f}%")
+            print(f"  {atributo:<10} {res['acuracia_media']:>8.2f} "
+                  f"{res['map_at_10']:>8.2f} {res['r_at_1']:>7.2f} {res['r_at_5']:>7.2f}")
 
 
 if __name__ == '__main__':

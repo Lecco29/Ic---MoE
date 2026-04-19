@@ -28,6 +28,9 @@ PASTA_EXP1   = os.path.join(PASTA_RAIZ, 'exp1_camada_unica')
 PASTA_DADOS  = os.path.join(PASTA_RAIZ, 'data')
 PASTA_VMAMBA = os.path.join(PASTA_EXP1, 'vmamba')
 
+sys.path.insert(0, PASTA_RAIZ)
+from src.evaluation.retrieval import computar_metricas_retrieval
+
 # melhores camadas de cada backbone (baseado nos resultados do exp01)
 # E = melhor camada para cor (early/shallow)
 # D = melhor camada para textura (deep)
@@ -143,6 +146,12 @@ def extrair_features_lote(extrator, imagens, nome_backbone, dispositivo, tamanho
     return todas
 
 
+def media_retrieval(lista_dicts):
+    """Recebe lista de dicts {map_at_10, r_at_1, r_at_5} e retorna a media de cada metrica."""
+    keys = ['map_at_10', 'r_at_1', 'r_at_5']
+    return {k: np.mean([d[k] for d in lista_dicts]) for k in keys}
+
+
 def avaliar_knn(X_treino, y_treino, X_teste, y_teste, k=5):
     knn = KNeighborsClassifier(n_neighbors=k, metric='euclidean')
     knn.fit(X_treino, y_treino)
@@ -177,6 +186,7 @@ def rodar_experimento(nome_backbone, dispositivo='cuda'):
 
         acc_E, acc_D, acc_Z = [], [], []
         f1_E,  f1_D,  f1_Z  = [], [], []
+        ret_E, ret_D, ret_Z = [], [], []
 
         for num_fold in range(1, 6):
             print(f"  Fold {num_fold}/5...", end=" ", flush=True)
@@ -217,26 +227,37 @@ def rodar_experimento(nome_backbone, dispositivo='cuda'):
             a, f = avaliar_knn(Z_tr, rotulos_treino_val, Z_te, rotulos_teste_val)
             acc_Z.append(a); f1_Z.append(f)
 
+            ret_E.append(computar_metricas_retrieval(E_tr, rotulos_treino_val, E_te, rotulos_teste_val))
+            ret_D.append(computar_metricas_retrieval(D_tr, rotulos_treino_val, D_te, rotulos_teste_val))
+            ret_Z.append(computar_metricas_retrieval(Z_tr, rotulos_treino_val, Z_te, rotulos_teste_val))
+
             print(f"E={acc_E[-1]:.1f}%  D={acc_D[-1]:.1f}%  Z={acc_Z[-1]:.1f}%")
+
+        mr_E = media_retrieval(ret_E)
+        mr_D = media_retrieval(ret_D)
+        mr_Z = media_retrieval(ret_Z)
 
         resultado = {
             'backbone':    nome_backbone,
             'atributo':    atributo,
             'camada_E':    camada_early,
             'acc_E_media': np.mean(acc_E), 'acc_E_std': np.std(acc_E), 'f1_E_media': np.mean(f1_E),
+            'map10_E': mr_E['map_at_10'], 'r1_E': mr_E['r_at_1'], 'r5_E': mr_E['r_at_5'],
             'camada_D':    camada_deep,
             'acc_D_media': np.mean(acc_D), 'acc_D_std': np.std(acc_D), 'f1_D_media': np.mean(f1_D),
+            'map10_D': mr_D['map_at_10'], 'r1_D': mr_D['r_at_1'], 'r5_D': mr_D['r_at_5'],
             'acc_Z_media': np.mean(acc_Z), 'acc_Z_std': np.std(acc_Z), 'f1_Z_media': np.mean(f1_Z),
+            'map10_Z': mr_Z['map_at_10'], 'r1_Z': mr_Z['r_at_1'], 'r5_Z': mr_Z['r_at_5'],
         }
         resultado['melhora'] = (resultado['acc_Z_media']
                                 - max(resultado['acc_E_media'], resultado['acc_D_media']))
         resultados.append(resultado)
 
         print(f"\n  Resultado {atributo}:")
-        print(f"    E ({camada_early}): {resultado['acc_E_media']:.2f}% +/- {resultado['acc_E_std']:.2f}%")
-        print(f"    D ({camada_deep}):  {resultado['acc_D_media']:.2f}% +/- {resultado['acc_D_std']:.2f}%")
-        print(f"    Z (fusao):         {resultado['acc_Z_media']:.2f}% +/- {resultado['acc_Z_std']:.2f}%")
-        print(f"    Melhora:           {resultado['melhora']:+.2f}%")
+        print(f"    E ({camada_early}): acc={resultado['acc_E_media']:.2f}%  mAP@10={mr_E['map_at_10']:.2f}%  R@1={mr_E['r_at_1']:.2f}%  R@5={mr_E['r_at_5']:.2f}%")
+        print(f"    D ({camada_deep}):  acc={resultado['acc_D_media']:.2f}%  mAP@10={mr_D['map_at_10']:.2f}%  R@1={mr_D['r_at_1']:.2f}%  R@5={mr_D['r_at_5']:.2f}%")
+        print(f"    Z (fusao):         acc={resultado['acc_Z_media']:.2f}%  mAP@10={mr_Z['map_at_10']:.2f}%  R@1={mr_Z['r_at_1']:.2f}%  R@5={mr_Z['r_at_5']:.2f}%")
+        print(f"    Melhora acc:       {resultado['melhora']:+.2f}%")
 
     return resultados
 
@@ -271,15 +292,20 @@ def main():
     df.to_csv(saida, index=False)
     print(f"\nResultados salvos em: {saida}")
 
-    print(f"\n{'='*65}")
+    print(f"\n{'='*90}")
     print("RESUMO — EXP02: FUSAO EARLY-DEEP POR CONCATENACAO (70/30, 5-fold)")
-    print(f"{'='*65}")
-    print(f"\n{'Backbone':<12} {'Atrib.':<10} {'E (%)':>8} {'D (%)':>8} {'Z (%)':>8} {'Δ (%)':>8}")
-    print("-" * 55)
+    print(f"{'='*90}")
+    header = f"{'Backbone':<12} {'Atrib.':<10} {'Método':<14} {'Acc(%)':>7} {'mAP@10':>8} {'R@1':>7} {'R@5':>7}"
+    print(header)
+    print("-" * 70)
     for r in todos:
-        print(f"{r['backbone']:<12} {r['atributo']:<10} "
-              f"{r['acc_E_media']:>7.2f}  {r['acc_D_media']:>7.2f}  "
-              f"{r['acc_Z_media']:>7.2f}  {r['melhora']:>+7.2f}")
+        for metodo, suffix in [('Early (E)', '_E'), ('Deep (D)', '_D'), ('Concat (Z)', '_Z')]:
+            print(f"{r['backbone']:<12} {r['atributo']:<10} {metodo:<14} "
+                  f"{r[f'acc{suffix}_media']:>7.2f} "
+                  f"{r[f'map10{suffix}']:>8.2f} "
+                  f"{r[f'r1{suffix}']:>7.2f} "
+                  f"{r[f'r5{suffix}']:>7.2f}")
+        print()
 
     print(f"\nFim: {datetime.now().strftime('%H:%M:%S')}")
 
