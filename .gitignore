@@ -62,3 +62,7 @@ outputs/resultados_experimentos.xlsx
 # Temporary files
 *.tmp
 *.temp
+
+# ICMLA - arquivos locais
+ICMLA/
+experiments/exp03_moe/gerar_figura_router.py
