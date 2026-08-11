@@ -1,260 +1,138 @@
 #!/usr/bin/env python3
-# experimento 1 - extrai features de cada camada do backbone e avalia com KNN
-# protocolo: 5 folds, 70% treino 30% teste
-# pra trocar o backbone e so mudar a variavel BACKBONE la embaixo
+"""Experimento 1 — sensibilidade camada a camada.
 
+Extrai features de cada camada do backbone isoladamente e classifica com kNN
+(k=5, euclidiana), sobre 5 folds 70/30. E o que mostra que camadas rasas vao
+melhor em cor e camadas profundas em textura.
+
+Gera a Tabela III e a Figura 2 do artigo.
+
+Uso:
+  python run.py                                  # todos os backbones, cor e textura
+  python run.py --backbone ibot
+  python run.py --backbone vgg16 resnet50 --atributo color
+"""
+
+import argparse
 import os
 import sys
-import torch
+import traceback
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from PIL import Image
-from torchvision import transforms
+import torch
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.neighbors import KNeighborsClassifier
 
-# caminhos
 PASTA_SCRIPT = os.path.dirname(os.path.abspath(__file__))
-PASTA_RAIZ   = os.path.dirname(os.path.dirname(PASTA_SCRIPT))
-PASTA_EXP1   = os.path.join(PASTA_RAIZ, 'exp1_camada_unica')
-PASTA_DADOS  = os.path.join(PASTA_RAIZ, 'data')
+PASTA_RAIZ = os.path.dirname(os.path.dirname(PASTA_SCRIPT))
+sys.path.insert(0, PASTA_RAIZ)
 
-# troca aqui pra rodar com outro backbone: ibot | resnet50 | vgg16 | vmamba
-BACKBONE = 'vgg16'
+from src.backbones import BACKBONES, criar_extrator
+from src.dados import N_FOLDS, carregar_fold, extrair_features
 
-PASTA_BACKBONE = os.path.join(PASTA_EXP1, BACKBONE)
-sys.path.insert(0, os.path.join(PASTA_BACKBONE, 'models'))
-sys.path.insert(0, os.path.join(PASTA_BACKBONE, 'features'))
-sys.path.insert(0, os.path.join(PASTA_BACKBONE, 'analysis'))
+PASTA_RESULTADOS = os.path.join(PASTA_SCRIPT, 'results')
 
-from carregadorVGG import criarExtrator
-from extracaoFeatures import extrairFeatures
-from avaliacaoKNN import avaliarKNNComFolds
+# nome da coluna de camada no CSV, por backbone (mantido por compatibilidade
+# com os CSVs que ja estavam no repositorio)
+COLUNA_CAMADA = {'ibot': 'bloco', 'vmamba': 'stage'}
 
 
-# transformacoes padrao pra imagens do imagenet
-# redimensiona pra 224x224 e normaliza com a media e desvio padrao do imagenet
-TRANSFORMACAO = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225])
-])
+def avaliar_knn(X_treino, y_treino, X_teste, y_teste, k=5):
+    knn = KNeighborsClassifier(n_neighbors=k, metric='euclidean')
+    knn.fit(X_treino, y_treino)
+    pred = knn.predict(X_teste)
+    return (accuracy_score(y_teste, pred) * 100,
+            f1_score(y_teste, pred, average='weighted') * 100)
 
 
-def carregarImagensDoFold(arquivoFold, pastaBase, tipoAtributo):
-    """
-    carrega as imagens de um arquivo de fold
-    o arquivo tem o formato: indice;classe;caminho_original
-    retorna as imagens ja transformadas e os labels
-    """
+def rodar_atributo(extrator, nome_backbone, atributo, dispositivo):
+    """Avalia todas as camadas do backbone nos 5 folds de um atributo."""
+    print(f"\n--- {atributo.upper()} ---")
 
-    listaImagens = []
-    listaLabels = []
+    # por_camada[camada] = {'acc': [...], 'f1': [...], 'dim': int}
+    por_camada = {}
 
-    # le o arquivo do fold
-    with open(arquivoFold, 'r') as f:
-        linhas = f.readlines()
+    for num_fold in range(1, N_FOLDS + 1):
+        print(f"  Fold {num_fold}/{N_FOLDS}...", end=" ", flush=True)
 
-    for linha in linhas:
-        linha = linha.strip()
-        if not linha:
-            continue
+        imgs_tr, rot_tr = carregar_fold(atributo, num_fold, 'train')
+        imgs_te, rot_te = carregar_fold(atributo, num_fold, 'test')
 
-        # separa as partes da linha (formato: indice;classe;caminho)
-        partes = linha.split(';')
-        if len(partes) < 3:
-            continue
+        feats_tr = extrair_features(extrator, imgs_tr, nome_backbone, dispositivo)
+        feats_te = extrair_features(extrator, imgs_te, nome_backbone, dispositivo)
 
-        classe = partes[1]
-        caminhoOriginal = partes[2]
+        acc_do_fold = {}
+        for camada in feats_tr:
+            acc, f1 = avaliar_knn(feats_tr[camada], rot_tr, feats_te[camada], rot_te)
+            dados = por_camada.setdefault(
+                camada, {'acc': [], 'f1': [], 'dim': feats_tr[camada].shape[1]})
+            dados['acc'].append(acc)
+            dados['f1'].append(f1)
+            acc_do_fold[camada] = acc
 
-        # extrai informacoes do caminho original pra montar o nome local
-        partesPath = caminhoOriginal.split('/')
-        subpasta = partesPath[-2]  # nome da classe no caminho
-        nomeArquivoOriginal = partesPath[-1]  # nome do arquivo
+        melhor = max(acc_do_fold, key=acc_do_fold.get)
+        print(f"melhor: {melhor}={acc_do_fold[melhor]:.1f}%")
 
-        # monta o nome no formato que ta salvo no projeto
-        # formato: tipoAtributo_classe_nomeOriginal
-        nomeArquivoLocal = f"{tipoAtributo}_{subpasta}_{nomeArquivoOriginal}"
-        caminhoLocal = os.path.join(pastaBase, nomeArquivoLocal)
-
-        # tenta carregar a imagem se existir
-        if os.path.exists(caminhoLocal):
-            try:
-                img = Image.open(caminhoLocal).convert('RGB')
-                listaImagens.append(TRANSFORMACAO(img))
-                listaLabels.append(classe)
-            except Exception as e:
-                print(f"erro ao carregar imagem: {caminhoLocal}")
-
-    # verifica se carregou alguma imagem
-    if len(listaImagens) == 0:
-        return None, None
-
-    # retorna como tensor e lista de labels
-    return torch.stack(listaImagens), listaLabels
+    return por_camada
 
 
-def rodarExperimentoComFolds(nome, pastaFolds, pastaImagens, modelo, device, tipoAtributo):
-    """
-    executa o experimento usando os 5 folds pre-definidos
-    pra cada fold extrai features e avalia com knn
-    no final calcula a media e desvio padrao dos resultados
-    """
+def salvar(nome_backbone, atributo, por_camada):
+    os.makedirs(PASTA_RESULTADOS, exist_ok=True)
+    coluna = COLUNA_CAMADA.get(nome_backbone, 'camada')
 
-    print(f"\n[{nome}]")
+    # CSV agregado: media e desvio entre os folds
+    agregado = pd.DataFrame([
+        {
+            coluna: camada,
+            'accuracy_mean': np.mean(d['acc']),
+            'accuracy_std': np.std(d['acc']),
+            'f1_score': np.mean(d['f1']),
+            'dim': d['dim'],
+        }
+        for camada, d in por_camada.items() if d['acc']
+    ])
+    agregado.to_csv(
+        os.path.join(PASTA_RESULTADOS, f'{nome_backbone}_{atributo}.csv'), index=False)
 
-    # dicionario pra guardar os resultados de cada camada
-    # a vgg16 tem 5 camadas de pooling que a gente extrai features
-    dadosPorCamada = {f'layer{i}': {'acc': [], 'f1': [], 'dim': 0} for i in range(1, 6)}
+    # CSV por fold: usado pelo teste de Wilcoxon
+    por_fold = pd.DataFrame([
+        {'camada': camada, **{f'fold{i + 1}': acc for i, acc in enumerate(d['acc'])}}
+        for camada, d in por_camada.items() if len(d['acc']) == N_FOLDS
+    ])
+    por_fold.to_csv(
+        os.path.join(PASTA_RESULTADOS, f'{nome_backbone}_{atributo}_por_fold.csv'), index=False)
 
-    # processa cada um dos 5 folds
-    for numFold in range(1, 6):
-        print(f"\n  processando fold {numFold}/5:")
-
-        # monta os caminhos dos arquivos de treino e teste do fold
-        arquivoTreino = os.path.join(pastaFolds, f'fold{numFold}-train.txt')
-        arquivoTeste = os.path.join(pastaFolds, f'fold{numFold}-test.txt')
-
-        # verifica se os arquivos existem
-        if not os.path.exists(arquivoTreino) or not os.path.exists(arquivoTeste):
-            print(f"    arquivos do fold nao encontrados!")
-            continue
-
-        # carrega as imagens de treino
-        print(f"    carregando imagens de treino...")
-        imagensTreino, labelsTreino = carregarImagensDoFold(arquivoTreino, pastaImagens, tipoAtributo)
-        if imagensTreino is None:
-            print(f"    erro ao carregar imagens de treino")
-            continue
-        print(f"    treino: {len(imagensTreino)} imagens carregadas")
-
-        # carrega as imagens de teste
-        print(f"    carregando imagens de teste...")
-        imagensTeste, labelsTeste = carregarImagensDoFold(arquivoTeste, pastaImagens, tipoAtributo)
-        if imagensTeste is None:
-            print(f"    erro ao carregar imagens de teste")
-            continue
-        print(f"    teste: {len(imagensTeste)} imagens carregadas")
-
-        # extrai features das imagens de treino usando o modelo
-        print(f"    extraindo features do conjunto de treino...")
-        featuresTreino = extrairFeatures(modelo, imagensTreino, device)
-
-        # extrai features das imagens de teste
-        print(f"    extraindo features do conjunto de teste...")
-        featuresTeste = extrairFeatures(modelo, imagensTeste, device)
-
-        # avalia as features com knn (k=5)
-        print(f"    avaliando com classificador knn...")
-        resultados = avaliarKNNComFolds(featuresTreino, labelsTreino, featuresTeste, labelsTeste)
-
-        # guarda os resultados de cada camada pro fold atual
-        for camada, res in resultados.items():
-            dadosPorCamada[camada]['acc'].append(res['accuracy'])
-            dadosPorCamada[camada]['f1'].append(res['f1_score'])
-            dadosPorCamada[camada]['dim'] = res['dim']
-
-        # mostra qual foi a melhor camada nesse fold
-        melhorCamada = max(resultados.keys(), key=lambda c: resultados[c]['accuracy'])
-        print(f"    melhor camada: {melhorCamada} = {resultados[melhorCamada]['accuracy']:.2f}%")
-
-    # calcula a media e desvio padrao dos 5 folds
-    print(f"\nresultados finais {nome} (media dos 5 folds):")
-    resultadoFinal = {}
-
-    for i in range(1, 6):
-        camada = f'layer{i}'
-        acuracias = dadosPorCamada[camada]['acc']
-        f1_scores = dadosPorCamada[camada]['f1']
-        dimensao = dadosPorCamada[camada]['dim']
-        
-        if len(acuracias) > 0:
-            mediaAcc = np.mean(acuracias)
-            desvioPadraoAcc = np.std(acuracias)
-            mediaF1 = np.mean(f1_scores)
-            
-            resultadoFinal[camada] = {
-                'accuracy_mean': mediaAcc,
-                'accuracy_std': desvioPadraoAcc,
-                'f1_score': mediaF1,
-                'dim': dimensao
-            }
-            print(f"  {camada}: {mediaAcc:.2f}% (+/- {desvioPadraoAcc:.2f})")
-
-    return resultadoFinal
+    print(f"\n  {nome_backbone.upper()} {atributo.upper()} (media de {N_FOLDS} folds):")
+    for linha in agregado.itertuples(index=False):
+        print(f"    {getattr(linha, coluna)}: "
+              f"{linha.accuracy_mean:.2f}% (±{linha.accuracy_std:.2f})")
 
 
 def main():
-    """
-    funcao principal que executa todo o experimento
-    testa a vgg16 em classificacao de cor e textura
-    """
-    
-    print("=" * 50)
-    print("VGG-16 - Classificacao de Atributos de Roupas")
-    print("Protocolo de Validacao: 70% treino / 30% teste")
-    print("=" * 50)
-    print(f"inicio: {datetime.now().strftime('%H:%M:%S')}")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--backbone', nargs='+', choices=BACKBONES, default=list(BACKBONES))
+    parser.add_argument('--atributo', nargs='+', choices=['color', 'texture'],
+                        default=['color', 'texture'])
+    args = parser.parse_args()
 
-    # verifica se tem gpu disponivel pra acelerar
-    if torch.cuda.is_available():
-        device = 'cuda'
-        print(f"usando gpu: {torch.cuda.get_device_name(0)}")
-    else:
-        device = 'cpu'
-        print("gpu nao disponivel, usando cpu (vai demorar mais)")
+    dispositivo = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Dispositivo: {dispositivo}")
+    print(f"Inicio: {datetime.now().strftime('%H:%M:%S')}")
 
-    # carrega o modelo vgg16 pre-treinado
-    print("\ncarregando modelo vgg-16...")
-    modelo = criarExtrator(dispositivo=device)
+    for nome in args.backbone:
+        print(f"\n{'=' * 60}\nBACKBONE: {nome.upper()}\n{'=' * 60}")
+        try:
+            extrator = criar_extrator(nome, dispositivo)
+            for atributo in args.atributo:
+                salvar(nome, atributo, rodar_atributo(extrator, nome, atributo, dispositivo))
+        except Exception as erro:
+            # nao aborta a bateria toda se um backbone falhar
+            print(f"ERRO com {nome}: {erro}")
+            traceback.print_exc()
 
-    # configura as pastas de dados (centralizados em data/)
-    pastaProtocolo = os.path.join(PASTA_DADOS, 'protocols')
-
-    # verifica se a pasta do protocolo existe
-    if not os.path.exists(pastaProtocolo):
-        print(f"erro: pasta do protocolo nao encontrada: {pastaProtocolo}")
-        return
-
-    # executa experimento de classificacao por cor
-    print("\n" + "=" * 50)
-    print("EXPERIMENTO 1: CLASSIFICACAO POR COR")
-    print("=" * 50)
-    resultadoCor = rodarExperimentoComFolds(
-        "COR",
-        os.path.join(pastaProtocolo, 'folds_color_70_30', 'folds'),
-        os.path.join(PASTA_DADOS, 'images', 'color'),
-        modelo, device,
-        tipoAtributo='color'
-    )
-
-    # executa experimento de classificacao por textura
-    print("\n" + "=" * 50)
-    print("EXPERIMENTO 2: CLASSIFICACAO POR TEXTURA")
-    print("=" * 50)
-    resultadoTextura = rodarExperimentoComFolds(
-        "TEXTURA",
-        os.path.join(pastaProtocolo, 'folds_texture_70_30', 'folds'),
-        os.path.join(PASTA_DADOS, 'images', 'texture'),
-        modelo, device,
-        tipoAtributo='texture'
-    )
-
-    # salva os resultados em arquivos csv na pasta results/ do experimento
-    print("\nsalvando resultados em csv...")
-    pastaResultados = os.path.join(PASTA_SCRIPT, 'results')
-    os.makedirs(pastaResultados, exist_ok=True)
-    nomeBackbone = BACKBONE
-    for nomeArquivo, resultado in [(f'{nomeBackbone}_color', resultadoCor), (f'{nomeBackbone}_texture', resultadoTextura)]:
-        # converte pra dataframe do pandas
-        df = pd.DataFrame([{'camada': c, **d} for c, d in resultado.items()])
-        caminhoArquivo = os.path.join(pastaResultados, f'{nomeArquivo}.csv')
-        df.to_csv(caminhoArquivo, index=False)
-        print(f"arquivo salvo: {caminhoArquivo}")
-
-    print(f"\nexperimento finalizado: {datetime.now().strftime('%H:%M:%S')}")
-    print("=" * 50)
+    print(f"\nFim: {datetime.now().strftime('%H:%M:%S')}")
 
 
 if __name__ == '__main__':

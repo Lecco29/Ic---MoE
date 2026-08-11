@@ -1,68 +1,49 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Material de versoes anteriores do trabalho (ICMLA, IJCNN, SMC) e codigo legado.
+# Fica so na maquina local.
+_arquivo/
 
-# Virtual environment
-venv/
-ENV/
-env/
+# Dataset (270 MB) — ver data/README.md
+data/images/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Jupyter
-.ipynb_checkpoints/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Model weights (large files)
+# Pesos dos modelos — o README explica onde baixar cada um
+checkpoints/*
+!checkpoints/README.md
 *.pth
 *.pt
 *.safetensors
 *.ckpt
 *.bin
 
-# Logs
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Ambiente virtual
+venv/
+env/
+ENV/
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+
+# Editores e SO
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Temporarios
 *.log
-
-# Dataset images (270MB)
-data/images/
-
-# Paper
-paper/
-
-# Scripts e planilhas de outputs
-outputs/gerar_curvas_desempenho.py
-outputs/gerar_planilha_resultados.py
-outputs/resultados_experimentos.xlsx
-
-# Temporary files
 *.tmp
-*.temp
-
-# ICMLA - arquivos locais
-ICMLA/
-experiments/exp03_moe/gerar_figura_router.py

@@ -1,6 +1,6 @@
 # Experimento 3 — MoE
 
-A ideia aqui veio dos resultados do exp01: camadas rasas pegam melhor cor, camadas profundas pegam melhor textura. No exp02 a gente concatenou as duas e funcionou, mas o peso é fixo pra todas as imagens. O MoE tenta aprender esse balanço por imagem — dependendo da lesão, talvez cor seja mais útil, em outra talvez textura.
+A ideia aqui veio dos resultados do exp01: camadas rasas pegam melhor cor, camadas profundas pegam melhor textura. No exp02 a gente concatenou as duas, mas o peso é fixo pra todas as imagens. O MoE tenta aprender esse balanço por imagem — numa peça de cor chapada a camada rasa é o que importa, num estampado é a profunda.
 
 ## Arquitetura
 

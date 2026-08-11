@@ -1,40 +1,54 @@
+#!/usr/bin/env python3
+"""Experimento 3 — fusao adaptativa com Mixture of Experts.
+
+Treina as projecoes hE/hD e o router sobre um backbone congelado, e avalia o
+embedding resultante z com kNN e com as metricas de CBIR. E a contribuicao
+principal do artigo.
+
+Gera as Tabelas VI e VII e as linhas "MoE" da Tabela VIII.
+
+Uso:
+  python run.py --backbone ibot --atributo both
+  python run.py --backbone vmamba --atributo texture --epocas 30
+"""
+
+import argparse
 import os
 import sys
-import argparse
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
 from PIL import Image
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-from datetime import datetime
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, f1_score
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
 
-# caminhos do projeto
 PASTA_BASE = os.path.dirname(os.path.abspath(__file__))
 PASTA_RAIZ = os.path.dirname(os.path.dirname(PASTA_BASE))
-PASTA_DADOS = os.path.join(PASTA_RAIZ, 'data')
-
 sys.path.insert(0, PASTA_BASE)
 sys.path.insert(0, PASTA_RAIZ)
-from models.moe import criar_modelo_moe
+
+from models.moe import BACKBONES_MOE, criar_modelo_moe
+from src.dados import N_FOLDS, listar_fold
 from src.evaluation.retrieval import computar_metricas_retrieval
 
+NORMALIZACAO = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
-# dataset simples que carrega imagem e retorna o label como inteiro
+
 class ConjuntoDados(Dataset):
+    """Carrega as imagens sob demanda e devolve o rotulo ja como indice."""
 
     def __init__(self, caminhos, rotulos, transformacao=None):
         self.caminhos = caminhos
         self.rotulos = rotulos
         self.transformacao = transformacao
 
-        # mapeia os nomes de classe pra indices numericos
         classes = sorted(set(rotulos))
         self.classe_para_idx = {c: i for i, c in enumerate(classes)}
         self.num_classes = len(classes)
@@ -46,44 +60,24 @@ class ConjuntoDados(Dataset):
         img = Image.open(self.caminhos[idx]).convert('RGB')
         if self.transformacao:
             img = self.transformacao(img)
-        rotulo_idx = self.classe_para_idx[self.rotulos[idx]]
-        return img, torch.tensor(rotulo_idx, dtype=torch.long)
+        return img, torch.tensor(self.classe_para_idx[self.rotulos[idx]], dtype=torch.long)
 
 
 def pegar_transformacoes(treino=True):
-    # no treino usa augmentation basica pra nao overfitar
+    """No treino, crop aleatorio + flip; na avaliacao, so resize."""
     if treino:
         return transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.RandomCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            NORMALIZACAO,
         ])
-    # na avaliacao so redimensiona e normaliza
     return transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        NORMALIZACAO,
     ])
-
-
-def carregar_fold(arquivo_fold, pasta_imagens, atributo):
-    # le o arquivo txt do fold e monta os caminhos das imagens locais
-    caminhos, rotulos = [], []
-    with open(arquivo_fold) as f:
-        for linha in f:
-            partes = linha.strip().split(';')
-            if len(partes) < 3:
-                continue
-            rotulo = partes[1]
-            original = partes[2]
-            nome_arquivo = f"{atributo}_{original.split('/')[-2]}_{original.split('/')[-1]}"
-            caminho = os.path.join(pasta_imagens, nome_arquivo)
-            if os.path.exists(caminho):
-                caminhos.append(caminho)
-                rotulos.append(rotulo)
-    return caminhos, rotulos
 
 
 def treinar_epoca(modelo, cabeca, loader, otimizador, criterio, dispositivo):
@@ -127,28 +121,13 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
     print(f"Epocas: {epocas} | d={d} | lr={lr} | KNN k={k_knn}")
     print(f"{'='*60}")
 
-    pasta_imagens = os.path.join(PASTA_DADOS, 'images', atributo)
-    pasta_folds = os.path.join(PASTA_DADOS, 'protocols', f'folds_{atributo}_70_30', 'folds')
-
-    if not os.path.isdir(pasta_imagens):
-        raise FileNotFoundError(f"pasta de imagens nao encontrada: {pasta_imagens}")
-    if not os.path.isdir(pasta_folds):
-        raise FileNotFoundError(f"pasta de folds nao encontrada: {pasta_folds}")
-
     resultados = []
-    metricas_retrieval = []
 
-    for fold in range(1, 6):
-        print(f"\n--- Fold {fold}/5 ---")
+    for fold in range(1, N_FOLDS + 1):
+        print(f"\n--- Fold {fold}/{N_FOLDS} ---")
 
-        caminhos_treino, rotulos_treino = carregar_fold(
-            os.path.join(pasta_folds, f'fold{fold}-train.txt'), pasta_imagens, atributo)
-        caminhos_teste, rotulos_teste = carregar_fold(
-            os.path.join(pasta_folds, f'fold{fold}-test.txt'), pasta_imagens, atributo)
-
-        if not caminhos_treino:
-            print(f"  sem imagens no fold {fold}, pulando")
-            continue
+        caminhos_treino, rotulos_treino = listar_fold(atributo, fold, 'train')
+        caminhos_teste, rotulos_teste = listar_fold(atributo, fold, 'test')
         print(f"  treino: {len(caminhos_treino)} | teste: {len(caminhos_teste)}")
 
         ds_treino = ConjuntoDados(caminhos_treino, rotulos_treino, pegar_transformacoes(treino=True))
@@ -181,13 +160,10 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
             otimizador = optim.AdamW(parametros_treinaveis, lr=lr, weight_decay=1e-5)
             scheduler = optim.lr_scheduler.CosineAnnealingLR(otimizador, T_max=epocas)
 
-            melhor_loss = float('inf')
             for epoca in range(epocas):
                 loss, acc = treinar_epoca(modelo, cabeca, loader_treino,
                                           otimizador, criterio, dispositivo)
                 scheduler.step()
-                if loss < melhor_loss:
-                    melhor_loss = loss
                 if (epoca + 1) % 10 == 0 or epoca == 0:
                     print(f"  epoca {epoca+1:3d}/{epocas}: loss={loss:.4f} acc={acc:.2f}%")
         else:
@@ -211,7 +187,6 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
         f1_knn = f1_score(y_teste, predicoes, average='weighted') * 100
 
         ret = computar_metricas_retrieval(z_treino_norm, y_treino, z_teste_norm, y_teste)
-        metricas_retrieval.append(ret)
 
         print(f"  KNN acc: {acc_knn:.2f}%  F1: {f1_knn:.2f}%")
         print(f"  CBIR  mAP@10: {ret['map_at_10']:.2f}%  R@1: {ret['r_at_1']:.2f}%  R@5: {ret['r_at_5']:.2f}%")
@@ -260,9 +235,9 @@ def rodar_experimento(nome_backbone, atributo, dispositivo,
 
 
 def main():
-    parser = argparse.ArgumentParser(description='treina e avalia o modelo MoE')
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--backbone', type=str, default='ibot',
-                        choices=['ibot', 'resnet50', 'vmamba', 'vgg16'])
+                        choices=sorted(BACKBONES_MOE))
     parser.add_argument('--atributo', type=str, default='color',
                         choices=['color', 'texture', 'both'])
     parser.add_argument('--epocas', type=int, default=30)
